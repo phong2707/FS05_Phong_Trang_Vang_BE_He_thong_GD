@@ -4,25 +4,32 @@
 
 Table users {
   id String [pk]
-  fullName String [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`]
+  deleted Boolean [not null, default: false]
+  firstName String [not null]
+  lastName String [not null]
+  middleName String
   email String [unique, not null]
-  avatarUrl String
-  dateOfBirth DateTime
-  gender String
-  address String
-  phoneNumber String
   status String [not null, default: 'PENDING']
+  avatarUrl String
+  gender String
+  phoneNumber String
+  address String
   googleId String [unique]
   ekycStatus String [not null, default: 'NOT_REQUIRED']
   lastLoginAt DateTime
-  createdAt DateTime [default: `now()`, not null]
-  updatedAt DateTime [not null]
-  deleted Boolean [not null, default: false]
+  roles user_to_role [not null]
+  permissions user_to_permission [not null]
   passwords passwords [not null]
-  userRoles user_to_role [not null]
-  userPermissions user_to_permission [not null]
-  createdRequests approval_requests [not null]
-  approvedRequests approval_requests [not null]
+  roleCreated roles [not null]
+  roleUpdated roles [not null]
+  featureCreated features [not null]
+  featureUpdated features [not null]
+  permissionCreated permissions [not null]
+  permissionUpdated permissions [not null]
+  requestCreator requests [not null]
+  requestApprover requests [not null]
   managedCourses courses [not null]
   courseAssignments course_teachers [not null]
   classEnrollments class_group_users [not null]
@@ -42,48 +49,37 @@ Table users {
 
 Table passwords {
   id String [pk]
-  userId String [not null]
-  password String [not null]
-  type String [not null, default: 'PASSWORD']
   createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`]
+  deleted Boolean [not null, default: false]
+  password String [not null]
+  userId String [not null]
+  type String [not null, default: 'PASSWORD']
   user users [not null]
 }
 
 Table roles {
   id String [pk]
-  roleCode String [unique, not null]
-  roleName String [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`]
+  createdById String
+  updatedById String
+  deleted Boolean [not null, default: false]
+  code String [unique, not null]
+  name String [not null]
   description String
   isReadOnly Boolean [not null, default: false]
   users user_to_role [not null]
   permissions role_to_permission [not null]
-}
-
-Table features {
-  id String [pk]
-  featureCode String [not null]
-  featureName String [not null]
-  type String [not null, default: 'FEATURE']
-  parentId String
-  sortOrder Int [not null, default: 0]
-  parent features
-  children features [not null]
-  permissions permissions [not null]
-}
-
-Table permissions {
-  id String [pk]
-  permissionCode String [not null]
-  permissionName String [not null]
-  featureId String [not null]
-  feature features [not null]
-  roles role_to_permission [not null]
-  users user_to_permission [not null]
+  createdBy users
+  updatedBy users
 }
 
 Table user_to_role {
   userId String [not null]
   roleId String [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`]
   user users [not null]
   role roles [not null]
 
@@ -92,20 +88,50 @@ Table user_to_role {
   }
 }
 
-Table role_to_permission {
-  roleId String [not null]
-  permissionId String [not null]
-  role roles [not null]
-  permission permissions [not null]
+Table features {
+  id String [pk]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`]
+  createdById String
+  updatedById String
+  deleted Boolean [not null, default: false]
+  code String [not null]
+  name String [not null]
+  description String
+  type String [not null, default: 'FEATURE']
+  parentId String
+  sortOrder Int [not null, default: 0]
+  parent features
+  children features [not null]
+  permissions permissions [not null]
+  createdBy users
+  updatedBy users
+}
 
-  indexes {
-    (roleId, permissionId) [pk]
-  }
+Table permissions {
+  id String [pk]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`]
+  createdById String
+  updatedById String
+  deleted Boolean [not null, default: false]
+  code String [not null]
+  name String [not null]
+  description String
+  type String [not null, default: 'FEATURE']
+  featureId String [not null]
+  feature features [not null]
+  users user_to_permission [not null]
+  roles role_to_permission [not null]
+  createdBy users
+  updatedBy users
 }
 
 Table user_to_permission {
   userId String [not null]
   permissionId String [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`]
   user users [not null]
   permission permissions [not null]
 
@@ -114,16 +140,30 @@ Table user_to_permission {
   }
 }
 
-Table approval_requests {
-  id String [pk]
-  creatorId String [not null]
-  requestType String [not null]
-  jsonData String [not null]
-  status String [not null, default: 'PENDING']
-  approverId String
+Table role_to_permission {
+  roleId String [not null]
+  permissionId String [not null]
   createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`]
+  role roles [not null]
+  permission permissions [not null]
+
+  indexes {
+    (roleId, permissionId) [pk]
+  }
+}
+
+Table requests {
+  id String [pk]
+  createdById String [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime
+  requestType String [not null]
+  jsonParameters String [not null]
+  status String [not null, default: 'PENDING']
+  approvedBy String
   approvedAt DateTime
-  creator users [not null]
+  requester users [not null]
   approver users
 }
 
@@ -294,7 +334,7 @@ Table submissions {
   classGroupId String [not null]
   graderId String
   score Float
-  status String [not null]
+  status String [not null, default: 'PENDING']
   finalScoreStatus String
   submittedAt DateTime [default: `now()`, not null]
   test tests [not null]
@@ -419,27 +459,49 @@ Table transactions {
   course courses [not null]
 }
 
+Table createdBy {
+  rolecreatedId String [ref: > roles.id]
+  featurecreatedId String [ref: > features.id]
+}
+
+Table updatedBy {
+  roleupdatedId String [ref: > roles.id]
+  featureupdatedId String [ref: > features.id]
+}
+
 Ref: passwords.userId > users.id [delete: Cascade]
 
-Ref: features.parentId - features.id [delete: Set Null]
+Ref: roles.createdById > users.id
 
-Ref: permissions.featureId > features.id [delete: Cascade]
+Ref: roles.updatedById > users.id
 
 Ref: user_to_role.userId > users.id [delete: Cascade]
 
 Ref: user_to_role.roleId > roles.id [delete: Cascade]
 
-Ref: role_to_permission.roleId > roles.id [delete: Cascade]
+Ref: features.parentId - features.id [delete: Set Null]
 
-Ref: role_to_permission.permissionId > permissions.id [delete: Cascade]
+Ref: features.createdById > users.id
+
+Ref: features.updatedById > users.id
+
+Ref: permissions.featureId > features.id [delete: Cascade]
+
+Ref: permissions.createdById > users.id
+
+Ref: permissions.updatedById > users.id
 
 Ref: user_to_permission.userId > users.id [delete: Cascade]
 
 Ref: user_to_permission.permissionId > permissions.id [delete: Cascade]
 
-Ref: approval_requests.creatorId > users.id
+Ref: role_to_permission.roleId > roles.id [delete: Cascade]
 
-Ref: approval_requests.approverId > users.id
+Ref: role_to_permission.permissionId > permissions.id [delete: Cascade]
+
+Ref: requests.createdById > users.id
+
+Ref: requests.approvedBy > users.id
 
 Ref: courses.adminId > users.id
 
@@ -459,7 +521,7 @@ Ref: taskmen.subjectId > subjects.id [delete: Cascade]
 
 Ref: videos.subjectId > subjects.id [delete: Cascade]
 
-Ref: questions.subjectId > subjects.id
+Ref: questions.subjectId > subjects.id [delete: Cascade]
 
 Ref: questions.teacherId > users.id
 
@@ -483,17 +545,17 @@ Ref: submissions.graderId > users.id
 
 Ref: user_question_answers.submissionId > submissions.id [delete: Cascade]
 
-Ref: user_question_answers.questionId > questions.id
+Ref: user_question_answers.questionId > questions.id [delete: Cascade]
 
-Ref: user_question_answers.answerId > question_answers.id
+Ref: user_question_answers.answerId > question_answers.id [delete: Set Null]
 
 Ref: learning_progress.studentId > users.id [delete: Cascade]
 
-Ref: learning_progress.videoId > videos.id
+Ref: learning_progress.videoId > videos.id [delete: Cascade]
 
-Ref: learning_progress.taskId > taskmen.id
+Ref: learning_progress.taskId > taskmen.id [delete: Cascade]
 
-Ref: learning_progress.testId > tests.id
+Ref: learning_progress.testId > tests.id [delete: Cascade]
 
 Ref: forums.subjectId > subjects.id [delete: Cascade]
 
@@ -501,7 +563,7 @@ Ref: forum_posts.forumId > forums.id [delete: Cascade]
 
 Ref: forum_posts.userId > users.id
 
-Ref: forum_posts.parentId - forum_posts.id
+Ref: forum_posts.parentId - forum_posts.id [delete: Set Null]
 
 Ref: messages.senderId > users.id
 

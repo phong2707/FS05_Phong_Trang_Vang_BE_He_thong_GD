@@ -1,8 +1,9 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// ==========================================
+// CONFIGURATION
+// ==========================================
 
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "./generated/prisma"
 }
 
@@ -14,45 +15,52 @@ datasource db {
   provider = "sqlite"
 }
 
-
 // ==========================================
 // 1. USER & SECURITY MANAGEMENT (RBAC)
 // ==========================================
 
 model User {
-  id           String    @id @default(uuid())
-  fullName     String    @map("full_name")
-  email        String    @unique
-  avatarUrl    String?   @map("avatar_url")
-  dateOfBirth  DateTime? @map("date_of_birth")
-  gender       String?   // MALE, FEMALE, OTHER
-  address      String?
-  phoneNumber  String?   @map("phone_number")
-  status       String    @default("PENDING") // ACTIVE, INACTIVE, PENDING
-  googleId     String?   @unique @map("google_id")
-  ekycStatus   String    @default("NOT_REQUIRED") @map("ekyc_status")
-  lastLoginAt  DateTime? @map("last_login_at")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-  deleted      Boolean   @default(false)
+  id          String    @id @default(uuid()) @map("id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime? @default(now()) @updatedAt @map("updated_at")
+  deleted     Boolean   @default(false) @map("deleted")
 
-  // Relations
+  firstName   String    @map("first_name")
+  lastName    String    @map("last_name")
+  middleName  String?   @map("middle_name")
+  email       String    @unique @map("email")
+  status      String    @default("PENDING") @map("status") // ACTIVE, INACTIVE, PENDING
+  avatarUrl   String?   @map("avatar_url")
+  gender      String?   @map("gender")
+  phoneNumber String?   @map("phone_number")
+  address     String?   @map("address")
+  googleId    String?   @unique @map("google_id")
+  ekycStatus  String    @default("NOT_REQUIRED") @map("ekyc_status")
+  lastLoginAt DateTime? @map("last_login_at")
+
+  // --- RBAC Relations ---
+  roles             UserToRole[]
+  permissions       UserToPermission[]
   passwords         Password[]
-  userRoles         UserToRole[]
-  userPermissions   UserToPermission[]
-  
-  // Workflow & Content Relations
-  createdRequests   ApprovalRequest[] @relation("CreatedBy")
-  approvedRequests  ApprovalRequest[] @relation("ApprovedBy")
-  managedCourses    Course[]          @relation("AdminManager")
+  roleCreated       Role[]             @relation("createdBy")
+  roleUpdated       Role[]             @relation("updatedBy")
+  featureCreated    Feature[]          @relation("createdBy")
+  featureUpdated    Feature[]          @relation("updatedBy")
+  permissionCreated Permission[]       @relation("createdBy")
+  permissionUpdated Permission[]       @relation("updatedBy")
+  requestCreator    Request[]          @relation("createdBy")
+  requestApprover   Request[]          @relation("approvedBy")
+
+  // --- LMS Relations ---
+  managedCourses    Course[]           @relation("AdminManager")
   courseAssignments CourseTeacher[]
   classEnrollments  ClassGroupUser[]
   questions         Question[]
   submissions       Submission[]
-  gradedSubmissions Submission[]      @relation("Grader")
+  gradedSubmissions Submission[]       @relation("Grader")
   forumPosts        ForumPost[]
-  sentMessages      Message[]         @relation("Sender")
-  receivedMessages  Message[]         @relation("Receiver")
+  sentMessages      Message[]          @relation("Sender")
+  receivedMessages  Message[]          @relation("Receiver")
   notifications     Notification[]
   courseReviews     CourseReview[]
   learningProgress  LearningProgress[]
@@ -64,11 +72,14 @@ model User {
 }
 
 model Password {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  password  String
-  type      String   @default("PASSWORD") // PASSWORD, OTP, REFRESH_TOKEN
-  createdAt DateTime @default(now()) @map("created_at")
+  id        String    @id @default(uuid())
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @default(now()) @updatedAt @map("updated_at")
+  deleted   Boolean   @default(false) @map("deleted")
+
+  password String
+  userId   String @map("user_id")
+  type     String @default("PASSWORD") @map("type") // PASSWORD, OTP, REFRESH_TOKEN
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -76,50 +87,31 @@ model Password {
 }
 
 model Role {
-  id          String   @id @default(uuid())
-  roleCode    String   @unique @map("role_code") // ADMIN, TEACHER, STUDENT
-  roleName    String   @map("role_name")
-  description String?
-  isReadOnly  Boolean  @default(false) @map("is_read_only")
+  id          String    @id @default(uuid()) @map("id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime? @default(now()) @updatedAt @map("updated_at")
+  createdById String?   @map("created_by_id")
+  updatedById String?   @map("updated_by_id")
+  deleted     Boolean   @default(false) @map("deleted")
+
+  code        String  @unique @map("code")
+  name        String  @map("name")
+  description String? @map("description")
+  isReadOnly  Boolean @default(false) @map("is_read_only")
 
   users       UserToRole[]
   permissions RoleToPermission[]
+  createdBy   User?              @relation("createdBy", fields: [createdById], references: [id])
+  updatedBy   User?              @relation("updatedBy", fields: [updatedById], references: [id])
 
   @@map("roles")
 }
 
-model Feature {
-  id          String   @id @default(uuid())
-  featureCode String   @map("feature_code")
-  featureName String   @map("feature_name")
-  type        String   @default("FEATURE") // MENU_GROUP, SYSTEM, FEATURE
-  parentId    String?  @map("parent_id")
-  sortOrder   Int      @default(0) @map("sort_order")
-
-  parent      Feature?     @relation("FeatureTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children    Feature[]    @relation("FeatureTree")
-  permissions Permission[]
-
-  @@map("features")
-}
-
-model Permission {
-  id             String   @id @default(uuid())
-  permissionCode String   @map("permission_code")
-  permissionName String   @map("permission_name")
-  featureId      String   @map("feature_id")
-
-  feature   Feature            @relation(fields: [featureId], references: [id], onDelete: Cascade)
-  roles     RoleToPermission[]
-  users     UserToPermission[]
-
-  @@map("permissions")
-}
-
-// Bảng trung gian Many-to-Many
 model UserToRole {
-  userId String @map("user_id")
-  roleId String @map("role_id")
+  userId    String    @map("user_id")
+  roleId    String    @map("role_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @default(now()) @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
@@ -128,20 +120,58 @@ model UserToRole {
   @@map("user_to_role")
 }
 
-model RoleToPermission {
-  roleId       String @map("role_id")
-  permissionId String @map("permission_id")
+model Feature {
+  id          String    @id @default(uuid()) @map("id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime? @default(now()) @updatedAt @map("updated_at")
+  createdById String?   @map("created_by_id")
+  updatedById String?   @map("updated_by_id")
+  deleted     Boolean   @default(false) @map("deleted")
 
-  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  code        String  @map("code")
+  name        String  @map("name")
+  description String? @map("description")
+  type        String  @default("FEATURE") @map("type")
+  parentId    String? @map("parent_id")
+  sortOrder   Int     @default(0) @map("sort_order")
 
-  @@id([roleId, permissionId])
-  @@map("role_to_permission")
+  parent      Feature?     @relation("featureRelation", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Feature[]    @relation("featureRelation")
+  permissions Permission[]
+  createdBy   User?        @relation("createdBy", fields: [createdById], references: [id])
+  updatedBy   User?        @relation("updatedBy", fields: [updatedById], references: [id])
+
+  @@map("features")
+}
+
+model Permission {
+  id          String    @id @default(uuid()) @map("id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime? @default(now()) @updatedAt @map("updated_at")
+  createdById String?   @map("created_by_id")
+  updatedById String?   @map("updated_by_id")
+  deleted     Boolean   @default(false) @map("deleted")
+
+  code        String  @map("code")
+  name        String  @map("name")
+  description String? @map("description")
+  type        String  @default("FEATURE") @map("type")
+  featureId   String  @map("feature_id")
+
+  feature   Feature            @relation(fields: [featureId], references: [id], onDelete: Cascade)
+  users     UserToPermission[]
+  roles     RoleToPermission[]
+  createdBy User?              @relation("createdBy", fields: [createdById], references: [id])
+  updatedBy User?              @relation("updatedBy", fields: [updatedById], references: [id])
+
+  @@map("permissions")
 }
 
 model UserToPermission {
-  userId       String @map("user_id")
-  permissionId String @map("permission_id")
+  userId       String    @map("user_id")
+  permissionId String    @map("permission_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime? @default(now()) @updatedAt @map("updated_at")
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
@@ -150,20 +180,35 @@ model UserToPermission {
   @@map("user_to_permission")
 }
 
-model ApprovalRequest {
-  id           String    @id @default(uuid())
-  creatorId    String    @map("creator_id")
-  requestType  String    @map("request_type")
-  jsonData     String    @map("json_data") // Lưu stringified JSON cho SQLite
-  status       String    @default("PENDING") // PENDING, APPROVED, REJECTED
-  approverId   String?   @map("approver_id")
+model RoleToPermission {
+  roleId       String    @map("role_id")
+  permissionId String    @map("permission_id")
   createdAt    DateTime  @default(now()) @map("created_at")
-  approvedAt   DateTime? @map("approved_at")
+  updatedAt    DateTime? @default(now()) @updatedAt @map("updated_at")
 
-  creator  User  @relation("CreatedBy", fields: [creatorId], references: [id])
-  approver User? @relation("ApprovedBy", fields: [approverId], references: [id])
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
-  @@map("approval_requests")
+  @@id([roleId, permissionId])
+  @@map("role_to_permission")
+}
+
+model Request {
+  id          String    @id @default(uuid())
+  createdById String    @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
+
+  requestType    String    @map("request_type")
+  jsonParameters String    @map("json_parameters")
+  status         String    @default("PENDING")
+  approvedBy     String?   @map("approved_by")
+  approvedAt     DateTime? @map("approved_at")
+
+  requester User  @relation("createdBy", fields: [createdById], references: [id])
+  approver  User? @relation("approvedBy", fields: [approvedBy], references: [id])
+
+  @@map("requests")
 }
 
 // ==========================================
@@ -191,9 +236,9 @@ model Course {
 }
 
 model CourseTeacher {
-  courseId  String   @map("course_id")
-  teacherId String   @map("teacher_id")
-  role      String   @default("MAIN_TEACHER")
+  courseId   String   @map("course_id")
+  teacherId  String   @map("teacher_id")
+  role       String   @default("MAIN_TEACHER")
   assignedAt DateTime @default(now()) @map("assigned_at")
 
   course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -240,7 +285,7 @@ model ClassGroup {
 model ClassGroupUser {
   userId       String   @map("user_id")
   classGroupId String   @map("class_group_id")
-  role         String   @default("STUDENT") // STUDENT, TEACHER
+  role         String   @default("STUDENT")
   joinedAt     DateTime @default(now()) @map("joined_at")
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -251,14 +296,14 @@ model ClassGroupUser {
 }
 
 // ==========================================
-// 3. TASKS, TESTS & GRADES
+// 3. CONTENT, TESTS & GRADES
 // ==========================================
 
 model Taskman {
   id        String   @id @default(uuid())
   subjectId String   @map("subject_id")
   title     String
-  fileType  String?  @map("file_type") // PDF, WORD, LINK
+  fileType  String?  @map("file_type")
   url       String
   sortOrder Int      @default(0) @map("sort_order")
   isVisible Boolean  @default(true) @map("is_visible")
@@ -276,7 +321,7 @@ model Video {
   title           String
   videoUrl        String   @map("video_url")
   durationSeconds Int      @map("duration_seconds")
-  provider        String   // YOUTUBE, VIMEO, INTERNAL
+  provider        String
   sortOrder       Int      @default(0) @map("sort_order")
   createdAt       DateTime @default(now()) @map("created_at")
 
@@ -305,22 +350,22 @@ model Question {
   explanation    String?
   createdAt      DateTime @default(now()) @map("created_at")
 
-  subject      Subject          @relation(fields: [subjectId], references: [id])
-  teacher      User             @relation(fields: [teacherId], references: [id])
-  questionType QuestionType     @relation(fields: [typeId], references: [id])
-  answers      QuestionAnswer[]
-  testLinks    TestQuestion[]
+  subject       Subject              @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher       User                 @relation(fields: [teacherId], references: [id])
+  questionType  QuestionType         @relation(fields: [typeId], references: [id])
+  answers       QuestionAnswer[]
+  testLinks     TestQuestion[]
   userResponses UserQuestionAnswer[]
 
   @@map("questions")
 }
 
 model QuestionAnswer {
-  id          String  @id @default(uuid())
-  questionId  String  @map("question_id")
-  answerText  String  @map("answer_text")
-  isCorrect   Boolean @default(false) @map("is_correct")
-  orderIndex  Int     @map("order_index")
+  id         String  @id @default(uuid())
+  questionId String  @map("question_id")
+  answerText String  @map("answer_text")
+  isCorrect  Boolean @default(false) @map("is_correct")
+  orderIndex Int     @map("order_index")
 
   question      Question             @relation(fields: [questionId], references: [id], onDelete: Cascade)
   userResponses UserQuestionAnswer[]
@@ -332,7 +377,7 @@ model Test {
   id              String    @id @default(uuid())
   subjectId       String    @map("subject_id")
   title           String
-  testType        String    @map("test_type") // QUIZ, ASSIGNMENT
+  testType        String    @map("test_type")
   durationMinutes Int       @map("duration_minutes")
   maxAttempts     Int       @default(1) @map("max_attempts")
   startTime       DateTime? @map("start_time")
@@ -361,21 +406,21 @@ model TestQuestion {
 }
 
 model Submission {
-  id               String    @id @default(uuid())
-  testId           String    @map("test_id")
-  studentId        String    @map("student_id")
-  classGroupId     String    @map("class_group_id")
-  graderId         String?   @map("grader_id")
+  id               String   @id @default(uuid())
+  testId           String   @map("test_id")
+  studentId        String   @map("student_id")
+  classGroupId     String   @map("class_group_id")
+  graderId         String?  @map("grader_id")
   score            Float?
-  status           String    // PENDING, GRADED
-  finalScoreStatus String?   @map("final_score_status") // AUTO_GRADED, MANUAL_PENDING
-  submittedAt      DateTime  @default(now()) @map("submitted_at")
+  status           String   @default("PENDING") // PENDING, GRADED
+  finalScoreStatus String?  @map("final_score_status") // AUTO_GRADED, MANUAL_PENDING
+  submittedAt      DateTime @default(now()) @map("submitted_at")
 
-  test           Test                 @relation(fields: [testId], references: [id], onDelete: Cascade)
-  student        User                 @relation(fields: [studentId], references: [id])
-  classGroup     ClassGroup           @relation(fields: [classGroupId], references: [id])
-  grader         User?                @relation("Grader", fields: [graderId], references: [id])
-  userAnswers    UserQuestionAnswer[]
+  test        Test                 @relation(fields: [testId], references: [id], onDelete: Cascade)
+  student     User                 @relation(fields: [studentId], references: [id])
+  classGroup  ClassGroup           @relation(fields: [classGroupId], references: [id])
+  grader      User?                @relation("Grader", fields: [graderId], references: [id])
+  userAnswers UserQuestionAnswer[]
 
   @@map("submissions")
 }
@@ -384,13 +429,13 @@ model UserQuestionAnswer {
   id           String  @id @default(uuid())
   submissionId String  @map("submission_id")
   questionId   String  @map("question_id")
-  answerId     String? @map("answer_id")
-  essayAnswer  String? @map("essay_answer")
+  answerId     String? @map("answer_id") // Bỏ trống nếu học viên không làm
+  essayAnswer  String? @map("essay_answer") // Dành cho câu tự luận
   isCorrect    Boolean @map("is_correct")
 
   submission Submission      @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  question   Question        @relation(fields: [questionId], references: [id])
-  answer     QuestionAnswer? @relation(fields: [answerId], references: [id])
+  question   Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answer     QuestionAnswer? @relation(fields: [answerId], references: [id], onDelete: SetNull)
 
   @@map("user_question_answers")
 }
@@ -405,22 +450,22 @@ model LearningProgress {
   completedAt DateTime? @map("completed_at")
 
   student User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  video   Video?   @relation(fields: [videoId], references: [id])
-  task    Taskman? @relation(fields: [taskId], references: [id])
-  test    Test?    @relation(fields: [testId], references: [id])
+  video   Video?   @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  task    Taskman? @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  test    Test?    @relation(fields: [testId], references: [id], onDelete: Cascade)
 
   @@map("learning_progress")
 }
 
 // ==========================================
-// 4. INTERACTION & SCHEDULE
+// 4. INTERACTION, SCHEDULE & FINANCE
 // ==========================================
 
 model Forum {
-  id        String   @id @default(uuid())
-  subjectId String   @map("subject_id")
+  id        String  @id @default(uuid())
+  subjectId String  @map("subject_id")
   title     String
-  isLocked  Boolean  @default(false) @map("is_locked")
+  isLocked  Boolean @default(false) @map("is_locked")
 
   subject Subject     @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   posts   ForumPost[]
@@ -436,10 +481,10 @@ model ForumPost {
   content   String
   createdAt DateTime @default(now()) @map("created_at")
 
-  forum    Forum       @relation(fields: [forumId], references: [id], onDelete: Cascade)
-  user     User        @relation(fields: [userId], references: [id])
-  parent   ForumPost?  @relation("PostReplies", fields: [parentId], references: [id])
-  replies  ForumPost[] @relation("PostReplies")
+  forum   Forum       @relation(fields: [forumId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id])
+  parent  ForumPost?  @relation("PostReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies ForumPost[] @relation("PostReplies")
 
   @@map("forum_posts")
 }
@@ -466,7 +511,7 @@ model Schedule {
   description  String?
   startAt      DateTime @map("start_at")
   endAt        DateTime @map("end_at")
-  dayOfWeek    Int      @map("day_of_week")
+  dayOfWeek    Int      @map("day_of_week") // 1: Monday, 7: Sunday
   roomLink     String?  @map("room_link")
   createdAt    DateTime @default(now()) @map("created_at")
 
@@ -501,10 +546,6 @@ model CourseReview {
 
   @@map("course_reviews")
 }
-
-// ==========================================
-// 5. FINANCE
-// ==========================================
 
 model Wallet {
   id        String   @id @default(uuid())

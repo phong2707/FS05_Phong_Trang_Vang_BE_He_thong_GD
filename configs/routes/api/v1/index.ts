@@ -6,6 +6,11 @@ import { ApiV1AdminRoute } from "./admin";
 import { AuthRoute } from "./auth";
 import { ApiV1DevRoute } from "./dev";
 
+
+import { TeacherRoute } from "../../teacher.route";
+import { CourseRoute } from "../../course.route";
+
+
 export class ApiV1Route extends RailsRoute {
   public draw() {
     if (env.nodeEnv === "development") {
@@ -14,6 +19,9 @@ export class ApiV1Route extends RailsRoute {
 
     this.path("/auth", AuthRoute.draw());
 
+    this.path("/teacher", TeacherRoute.draw());
+    this.path("/courses", CourseRoute.draw());
+
     this.path(action(ValidateUserLoginMiddleware));
 
     // Permission routes - action(Controller, "index") tạo instance mới mỗi request
@@ -21,5 +29,9 @@ export class ApiV1Route extends RailsRoute {
 
     // Admin routes - yêu cầu AM permission
     this.path("/admin", ApiV1AdminRoute.draw());
+
+    
+    
+
   }
 }

@@ -14,6 +14,7 @@ import { DevRoute } from "./dev.route";
 import { ProfileRoute } from "./profile.route";
 import { UserRoute } from "./user.route";
 
+
 // Configure the permission factory for the entire application.
 // This decouples the RailsRoute library from specific application middlewares.
 RailsRoute.permissionFactory = {
@@ -47,10 +48,11 @@ export class Route extends RailsRoute {
     this.path("/admin", AdminRoute.draw());
     this.path("/auth", AuthRoute.draw());
     this.path("/me", ProfileRoute.draw());
-    this.path("/users", UserRoute.draw());
+    this.path("/users", UserRoute.draw());    
 
     this.resource(HomeController, {
       only: [RestActions.Index],
     });
   }
 }
+

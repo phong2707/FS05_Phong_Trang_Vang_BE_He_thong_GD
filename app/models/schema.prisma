@@ -45,6 +45,33 @@ model User {
   requestCreator    Request[]          @relation("createdBy")
   requestApprover   Request[]          @relation("approvedBy")
 
+  // ===== COURSE & ENROLLMENT =====
+  coursesCreated     Course[]            @relation("AdminCourses")
+  teachingCourses    CourseTeacher[]
+  studentEnrollments StudentEnrollment[]
+
+  // ===== QUESTIONS & TEST =====
+  questionsCreated Question[]
+
+  // ===== SUBMISSIONS =====
+  submissions Submission[]
+
+  // ===== TRANSACTIONS =====
+  transactions Transaction[]
+
+  // ===== FORUM & POSTS =====
+  forumPosts ForumPost[]
+
+  // ===== MESSAGE (CHAT) =====
+  sentMessages     Message[] @relation("sender")
+  receivedMessages Message[] @relation("receiver")
+
+  // ===== NOTIFICATIONS =====
+  notifications Notification[]
+
+  subjectGrades SubjectGrade[]
+  wallet        Wallet?
+
   @@map("users")
 }
 
@@ -194,4 +221,289 @@ model Request {
   approver  User? @relation("approvedBy", fields: [approvedBy], references: [id])
 
   @@map("requests")
+}
+
+//COURSE / SUBJECT / CLASS GROUP
+model Course {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  price       Float?
+  adminId     String   @map("admin_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  admin User @relation("AdminCourses", fields: [adminId], references: [id])
+
+  teachers     CourseTeacher[]
+  subjects     Subject[]
+  enrollments  StudentEnrollment[]
+  transactions Transaction[]
+
+  @@map("courses")
+}
+
+model CourseTeacher {
+  courseId   String   @map("course_id")
+  teacherId  String   @map("teacher_id")
+  role       String   @default("MAIN_TEACHER")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  // Relations
+  course  Course @relation(fields: [courseId], references: [id])
+  teacher User   @relation(fields: [teacherId], references: [id])
+
+  @@id([courseId, teacherId])
+  @@map("course_teachers")
+}
+
+model Subject {
+  id          String   @id @default(uuid())
+  courseId    String   @map("course_id")
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  course    Course         @relation(fields: [courseId], references: [id])
+  taskments Taskment[]
+  questions Question[]
+  tests     Test[]
+  grades    SubjectGrade[]
+  videos    Video[]
+  forums    Forum[]
+
+  @@map("subjects")
+}
+
+model StudentEnrollment {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  courseId   String   @map("course_id")
+  role       String   @default("STUDENT")
+  status     String   @default("ACTIVE")
+  enrolledAt DateTime @default(now()) @map("enrolled_at")
+
+  // Relations
+  student User   @relation(fields: [userId], references: [id])
+  course  Course @relation(fields: [courseId], references: [id])
+
+  @@map("student_enrollments")
+}
+
+//CONTENT, QUIZ, ASSIGNMENT, GRADES
+model Taskment {
+  id        String  @id @default(uuid())
+  subjectId String  @map("subject_id")
+  title     String
+  fileType  String  @map("file_type")
+  url       String
+  isVisible Boolean @default(true) @map("is_visible")
+
+  subject Subject @relation(fields: [subjectId], references: [id])
+
+  @@map("taskments")
+}
+
+model Question {
+  id           String   @id @default(uuid())
+  subjectId    String   @map("subject_id")
+  teacherId    String   @map("teacher_id")
+  questionType String
+  content      String
+  explanation  String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  subject Subject  @relation(fields: [subjectId], references: [id])
+  teacher User     @relation(fields: [teacherId], references: [id])
+  answers Answer[]
+
+  testQuestions     TestQuestion[]
+  submissionAnswers SubmissionAnswer[]
+
+  @@map("questions")
+}
+
+model Answer {
+  id         String  @id @default(uuid())
+  questionId String  @map("question_id")
+  answerCode String
+  content    String
+  isCorrect  Boolean @default(false) @map("is_correct")
+
+  question Question @relation(fields: [questionId], references: [id])
+
+  submissionAnswers SubmissionAnswer[]
+
+  @@map("answers")
+}
+
+model Test {
+  id              String    @id @default(uuid())
+  subjectId       String    @map("subject_id")
+  title           String
+  testType        String    @map("test_type")
+  durationMinutes Int       @map("duration_minutes")
+  maxAttempts     Int?
+  startTime       DateTime? @map("start_time")
+  endTime         DateTime? @map("end_time")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  subject     Subject        @relation(fields: [subjectId], references: [id])
+  questions   TestQuestion[]
+  submissions Submission[]
+
+  @@map("tests")
+}
+
+model TestQuestion {
+  testId     String @map("test_id")
+  questionId String @map("question_id")
+  points     Float
+
+  test     Test     @relation(fields: [testId], references: [id])
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@id([testId, questionId])
+  @@map("test_questions")
+}
+
+model Submission {
+  id        String @id @default(uuid())
+  testId    String @map("test_id")
+  studentId String @map("student_id")
+
+  submissionUrl String?  @map("submission_url")
+  score         Float?
+  feedbackUrl   String?  @map("feedback_url")
+  status        String   @default("PENDING")
+  submittedAt   DateTime @default(now()) @map("submitted_at")
+
+  test    Test               @relation(fields: [testId], references: [id])
+  student User               @relation(fields: [studentId], references: [id])
+  answers SubmissionAnswer[]
+
+  @@map("submissions")
+}
+
+model SubmissionAnswer {
+  id           String  @id @default(uuid())
+  submissionId String  @map("submission_id")
+  questionId   String  @map("question_id")
+  answerId     String  @map("answer_id")
+  isCorrect    Boolean
+  score        Float
+
+  submission Submission @relation(fields: [submissionId], references: [id])
+  question   Question   @relation(fields: [questionId], references: [id])
+  answer     Answer     @relation(fields: [answerId], references: [id])
+
+  @@map("submission_answers")
+}
+
+model SubjectGrade {
+  id         String   @id @default(uuid())
+  studentId  String   @map("student_id")
+  subjectId  String   @map("subject_id")
+  finalScore Float
+  status     String
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  student User    @relation(fields: [studentId], references: [id])
+  subject Subject @relation(fields: [subjectId], references: [id])
+
+  @@map("subject_grades")
+}
+
+model Video {
+  id              String   @id @default(uuid())
+  subjectId       String   @map("subject_id")
+  title           String
+  description     String?
+  videoUrl        String   @map("video_url")
+  durationSeconds Int      @map("duration_seconds")
+  isPreview       Boolean  @default(false) @map("is_preview")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  subject Subject @relation(fields: [subjectId], references: [id])
+
+  @@map("videos")
+}
+
+//FORUM, CHAT, NOTIFICATION
+model Forum {
+  id        String @id @default(uuid())
+  subjectId String @map("subject_id")
+  title     String
+
+  subject Subject     @relation(fields: [subjectId], references: [id])
+  posts   ForumPost[]
+
+  @@map("forums")
+}
+
+model ForumPost {
+  id        String   @id @default(uuid())
+  forumId   String   @map("forum_id")
+  userId    String   @map("user_id")
+  parentId  String?
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  forum  Forum       @relation(fields: [forumId], references: [id])
+  user   User        @relation(fields: [userId], references: [id])
+  parent ForumPost?  @relation("PostTree", fields: [parentId], references: [id])
+  childs ForumPost[] @relation("PostTree")
+
+  @@map("forum_posts")
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  senderId   String   @map("sender_id")
+  receiverId String   @map("receiver_id")
+  content    String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  sender   User @relation("sender", fields: [senderId], references: [id])
+  receiver User @relation("receiver", fields: [receiverId], references: [id])
+
+  @@map("messages")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  content   String
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+//FINANCE & PAYMENT
+model Wallet {
+  id      String @id @default(uuid())
+  userId  String @unique @map("user_id")
+  balance Float  @default(0)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("wallets")
+}
+
+model Transaction {
+  id            String   @id @default(uuid())
+  studentId     String   @map("student_id")
+  courseId      String   @map("course_id")
+  amount        Float
+  paymentMethod String   @default("VNPAY") @map("payment_method")
+  status        String
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  student User   @relation(fields: [studentId], references: [id])
+  course  Course @relation(fields: [courseId], references: [id])
+
+  @@map("transactions")
 }

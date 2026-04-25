@@ -17,6 +17,8 @@ Table users {
   phoneNumber String
   address String
   googleId String [unique]
+  ekycStatus String [not null, default: 'NOT_REQUIRED']
+  lastLoginAt DateTime
   roles user_to_role [not null]
   permissions user_to_permission [not null]
   passwords passwords [not null]
@@ -28,6 +30,21 @@ Table users {
   permissionUpdated permissions [not null]
   requestCreator requests [not null]
   requestApprover requests [not null]
+  managedCourses courses [not null]
+  courseAssignments course_teachers [not null]
+  classEnrollments class_group_users [not null]
+  questions questions [not null]
+  submissions submissions [not null]
+  gradedSubmissions submissions [not null]
+  forumPosts forum_posts [not null]
+  sentMessages messages [not null]
+  receivedMessages messages [not null]
+  notifications notifications [not null]
+  courseReviews course_reviews [not null]
+  learningProgress learning_progress [not null]
+  wallet wallets
+  transactions transactions [not null]
+  schedules schedules [not null]
 }
 
 Table passwords {
@@ -85,7 +102,7 @@ Table features {
   parentId String
   sortOrder Int [not null, default: 0]
   parent features
-  childs features [not null]
+  children features [not null]
   permissions permissions [not null]
   createdBy users
   updatedBy users
@@ -150,6 +167,298 @@ Table requests {
   approver users
 }
 
+Table courses {
+  id String [pk]
+  title String [not null]
+  description String
+  thumbnailUrl String
+  price Float [not null]
+  status String [not null, default: 'DRAFT']
+  adminId String [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  admin users [not null]
+  teachers course_teachers [not null]
+  subjects subjects [not null]
+  courseReviews course_reviews [not null]
+  transactions transactions [not null]
+}
+
+Table course_teachers {
+  courseId String [not null]
+  teacherId String [not null]
+  role String [not null, default: 'MAIN_TEACHER']
+  assignedAt DateTime [default: `now()`, not null]
+  course courses [not null]
+  teacher users [not null]
+
+  indexes {
+    (courseId, teacherId) [pk]
+  }
+}
+
+Table subjects {
+  id String [pk]
+  courseId String [not null]
+  name String [not null]
+  description String
+  sortOrder Int [not null, default: 0]
+  createdAt DateTime [default: `now()`, not null]
+  course courses [not null]
+  classGroups class_groups [not null]
+  taskmen taskmen [not null]
+  videos videos [not null]
+  questions questions [not null]
+  tests tests [not null]
+  forums forums [not null]
+}
+
+Table class_groups {
+  id String [pk]
+  subjectId String [not null]
+  name String [not null]
+  status String [not null, default: 'ACTIVE']
+  createdAt DateTime [default: `now()`, not null]
+  subject subjects [not null]
+  groupUsers class_group_users [not null]
+  submissions submissions [not null]
+  schedules schedules [not null]
+}
+
+Table class_group_users {
+  userId String [not null]
+  classGroupId String [not null]
+  role String [not null, default: 'STUDENT']
+  joinedAt DateTime [default: `now()`, not null]
+  user users [not null]
+  classGroup class_groups [not null]
+
+  indexes {
+    (userId, classGroupId) [pk]
+  }
+}
+
+Table taskmen {
+  id String [pk]
+  subjectId String [not null]
+  title String [not null]
+  fileType String
+  url String [not null]
+  sortOrder Int [not null, default: 0]
+  isVisible Boolean [not null, default: true]
+  createdAt DateTime [default: `now()`, not null]
+  subject subjects [not null]
+  learningProgress learning_progress [not null]
+}
+
+Table videos {
+  id String [pk]
+  subjectId String [not null]
+  title String [not null]
+  videoUrl String [not null]
+  durationSeconds Int [not null]
+  provider String [not null]
+  sortOrder Int [not null, default: 0]
+  createdAt DateTime [default: `now()`, not null]
+  subject subjects [not null]
+  learningProgress learning_progress [not null]
+}
+
+Table question_types {
+  id String [pk]
+  name String [not null]
+  description String
+  questions questions [not null]
+}
+
+Table questions {
+  id String [pk]
+  subjectId String [not null]
+  teacherId String [not null]
+  typeId String [not null]
+  questionFormat String [not null, default: 'SINGLE_CHOICE']
+  content String [not null]
+  explanation String
+  createdAt DateTime [default: `now()`, not null]
+  subject subjects [not null]
+  teacher users [not null]
+  questionType question_types [not null]
+  answers question_answers [not null]
+  testLinks test_questions [not null]
+  userResponses user_question_answers [not null]
+}
+
+Table question_answers {
+  id String [pk]
+  questionId String [not null]
+  answerText String [not null]
+  isCorrect Boolean [not null, default: false]
+  orderIndex Int [not null]
+  question questions [not null]
+  userResponses user_question_answers [not null]
+}
+
+Table tests {
+  id String [pk]
+  subjectId String [not null]
+  title String [not null]
+  testType String [not null]
+  durationMinutes Int [not null]
+  maxAttempts Int [not null, default: 1]
+  startTime DateTime
+  endTime DateTime
+  createdAt DateTime [default: `now()`, not null]
+  subject subjects [not null]
+  testQuestions test_questions [not null]
+  submissions submissions [not null]
+  learningProgress learning_progress [not null]
+}
+
+Table test_questions {
+  testId String [not null]
+  questionId String [not null]
+  points Float [not null]
+  sortOrder Int [not null, default: 0]
+  test tests [not null]
+  question questions [not null]
+
+  indexes {
+    (testId, questionId) [pk]
+  }
+}
+
+Table submissions {
+  id String [pk]
+  testId String [not null]
+  studentId String [not null]
+  classGroupId String [not null]
+  graderId String
+  score Float
+  status String [not null, default: 'PENDING']
+  finalScoreStatus String
+  submittedAt DateTime [default: `now()`, not null]
+  test tests [not null]
+  student users [not null]
+  classGroup class_groups [not null]
+  grader users
+  userAnswers user_question_answers [not null]
+}
+
+Table user_question_answers {
+  id String [pk]
+  submissionId String [not null]
+  questionId String [not null]
+  answerId String
+  essayAnswer String
+  isCorrect Boolean [not null]
+  submission submissions [not null]
+  question questions [not null]
+  answer question_answers
+}
+
+Table learning_progress {
+  id String [pk]
+  studentId String [not null]
+  videoId String
+  taskId String
+  testId String
+  status String [not null, default: 'COMPLETED']
+  completedAt DateTime
+  student users [not null]
+  video videos
+  task taskmen
+  test tests
+}
+
+Table forums {
+  id String [pk]
+  subjectId String [not null]
+  title String [not null]
+  isLocked Boolean [not null, default: false]
+  subject subjects [not null]
+  posts forum_posts [not null]
+}
+
+Table forum_posts {
+  id String [pk]
+  forumId String [not null]
+  userId String [not null]
+  parentId String
+  content String [not null]
+  createdAt DateTime [default: `now()`, not null]
+  forum forums [not null]
+  user users [not null]
+  parent forum_posts
+  replies forum_posts [not null]
+}
+
+Table messages {
+  id String [pk]
+  senderId String [not null]
+  receiverId String [not null]
+  content String [not null]
+  isRead Boolean [not null, default: false]
+  createdAt DateTime [default: `now()`, not null]
+  sender users [not null]
+  receiver users [not null]
+}
+
+Table schedules {
+  id String [pk]
+  classGroupId String [not null]
+  teacherId String [not null]
+  title String [not null]
+  description String
+  startAt DateTime [not null]
+  endAt DateTime [not null]
+  dayOfWeek Int [not null]
+  roomLink String
+  createdAt DateTime [default: `now()`, not null]
+  classGroup class_groups [not null]
+  teacher users [not null]
+}
+
+Table notifications {
+  id String [pk]
+  userId String [not null]
+  content String [not null]
+  isRead Boolean [not null, default: false]
+  createdAt DateTime [default: `now()`, not null]
+  user users [not null]
+}
+
+Table course_reviews {
+  id String [pk]
+  courseId String [not null]
+  studentId String [not null]
+  rating Int [not null]
+  content String
+  createdAt DateTime [default: `now()`, not null]
+  course courses [not null]
+  student users [not null]
+}
+
+Table wallets {
+  id String [pk]
+  userId String [unique, not null]
+  balance Float [not null, default: 0]
+  updatedAt DateTime [not null]
+  user users [not null]
+}
+
+Table transactions {
+  id String [pk]
+  studentId String [not null]
+  courseId String [not null]
+  amount Float [not null]
+  paymentMethod String [not null, default: 'VNPAY']
+  referenceCode String
+  status String [not null]
+  createdAt DateTime [default: `now()`, not null]
+  student users [not null]
+  course courses [not null]
+}
+
 Table createdBy {
   rolecreatedId String [ref: > roles.id]
   featurecreatedId String [ref: > features.id]
@@ -160,36 +469,118 @@ Table updatedBy {
   featureupdatedId String [ref: > features.id]
 }
 
-Ref: passwords.userId > users.id
+Ref: passwords.userId > users.id [delete: Cascade]
 
 Ref: roles.createdById > users.id
 
 Ref: roles.updatedById > users.id
 
-Ref: user_to_role.userId > users.id
+Ref: user_to_role.userId > users.id [delete: Cascade]
 
-Ref: user_to_role.roleId > roles.id
+Ref: user_to_role.roleId > roles.id [delete: Cascade]
 
-Ref: features.parentId - features.id
+Ref: features.parentId - features.id [delete: Set Null]
 
 Ref: features.createdById > users.id
 
 Ref: features.updatedById > users.id
 
-Ref: permissions.featureId > features.id
+Ref: permissions.featureId > features.id [delete: Cascade]
 
 Ref: permissions.createdById > users.id
 
 Ref: permissions.updatedById > users.id
 
-Ref: user_to_permission.userId > users.id
+Ref: user_to_permission.userId > users.id [delete: Cascade]
 
-Ref: user_to_permission.permissionId > permissions.id
+Ref: user_to_permission.permissionId > permissions.id [delete: Cascade]
 
-Ref: role_to_permission.roleId > roles.id
+Ref: role_to_permission.roleId > roles.id [delete: Cascade]
 
-Ref: role_to_permission.permissionId > permissions.id
+Ref: role_to_permission.permissionId > permissions.id [delete: Cascade]
 
 Ref: requests.createdById > users.id
 
 Ref: requests.approvedBy > users.id
+
+Ref: courses.adminId > users.id
+
+Ref: course_teachers.courseId > courses.id [delete: Cascade]
+
+Ref: course_teachers.teacherId > users.id [delete: Cascade]
+
+Ref: subjects.courseId > courses.id [delete: Cascade]
+
+Ref: class_groups.subjectId > subjects.id [delete: Cascade]
+
+Ref: class_group_users.userId > users.id [delete: Cascade]
+
+Ref: class_group_users.classGroupId > class_groups.id [delete: Cascade]
+
+Ref: taskmen.subjectId > subjects.id [delete: Cascade]
+
+Ref: videos.subjectId > subjects.id [delete: Cascade]
+
+Ref: questions.subjectId > subjects.id [delete: Cascade]
+
+Ref: questions.teacherId > users.id
+
+Ref: questions.typeId > question_types.id
+
+Ref: question_answers.questionId > questions.id [delete: Cascade]
+
+Ref: tests.subjectId > subjects.id [delete: Cascade]
+
+Ref: test_questions.testId > tests.id [delete: Cascade]
+
+Ref: test_questions.questionId > questions.id [delete: Cascade]
+
+Ref: submissions.testId > tests.id [delete: Cascade]
+
+Ref: submissions.studentId > users.id
+
+Ref: submissions.classGroupId > class_groups.id
+
+Ref: submissions.graderId > users.id
+
+Ref: user_question_answers.submissionId > submissions.id [delete: Cascade]
+
+Ref: user_question_answers.questionId > questions.id [delete: Cascade]
+
+Ref: user_question_answers.answerId > question_answers.id [delete: Set Null]
+
+Ref: learning_progress.studentId > users.id [delete: Cascade]
+
+Ref: learning_progress.videoId > videos.id [delete: Cascade]
+
+Ref: learning_progress.taskId > taskmen.id [delete: Cascade]
+
+Ref: learning_progress.testId > tests.id [delete: Cascade]
+
+Ref: forums.subjectId > subjects.id [delete: Cascade]
+
+Ref: forum_posts.forumId > forums.id [delete: Cascade]
+
+Ref: forum_posts.userId > users.id
+
+Ref: forum_posts.parentId - forum_posts.id [delete: Set Null]
+
+Ref: messages.senderId > users.id
+
+Ref: messages.receiverId > users.id
+
+Ref: schedules.classGroupId > class_groups.id [delete: Cascade]
+
+Ref: schedules.teacherId > users.id
+
+Ref: notifications.userId > users.id [delete: Cascade]
+
+Ref: course_reviews.courseId > courses.id [delete: Cascade]
+
+Ref: course_reviews.studentId > users.id
+
+Ref: wallets.userId - users.id [delete: Cascade]
+
+Ref: transactions.studentId > users.id
+
+Ref: transactions.courseId > courses.id

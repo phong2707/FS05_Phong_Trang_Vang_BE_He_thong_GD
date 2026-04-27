@@ -26,6 +26,7 @@
     "@supabase/supabase-js": "^2.103.0",
     "axios": "^1.15.0",
     "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.8.0",
     "bootstrap": "^5.3.8",
     "bullmq": "^5.73.3",

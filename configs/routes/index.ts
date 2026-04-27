@@ -38,14 +38,17 @@ RailsRoute.actionPermissionMap = {
 
 export class Route extends RailsRoute {
   public draw() {
+
+
     this.path(action(CurrentUserMiddleware));
 
     if (env.nodeEnv === "development") this.path("/dev", DevRoute.draw());
 
     this.path("/api", ApiRoute.draw());
+    this.path("/auth", AuthRoute.draw());
 
     this.path("/admin", AdminRoute.draw());
-    this.path("/auth", AuthRoute.draw());
+    
     this.path("/me", ProfileRoute.draw());
     this.path("/users", UserRoute.draw());
 

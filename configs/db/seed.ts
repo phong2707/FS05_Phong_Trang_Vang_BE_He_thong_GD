@@ -1,4 +1,5 @@
 import models from "@models";
+import bcrypt from "bcrypt";
 
 async function seed() {
   try {
@@ -70,8 +71,8 @@ async function seed() {
     // 3. TẠO USERS (ADMIN, TEACHER, STUDENT)
     // ==========================================
     console.log("👥 Đang tạo tài khoản người dùng...");
-    const defaultPassword = { create: { password: "$2b$10$YourHashedPasswordHere", type: "PASSWORD" } }; // Mật khẩu mẫu đã mã hóa
-
+    const hashedPassword = await bcrypt.hash("123456", 10);
+    const defaultPassword = { create: { password: hashedPassword, type: "PASSWORD" } };
     const admin = await models.user.create({
       data: {
         firstName: "Phong", lastName: "Nguyễn", email: "admin@iviettech.vn", status: "ACTIVE", gender: "MALE",

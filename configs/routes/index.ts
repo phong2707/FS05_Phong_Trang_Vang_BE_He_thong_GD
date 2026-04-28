@@ -42,15 +42,14 @@ export class Route extends RailsRoute {
 
     if (env.nodeEnv === "development") this.path("/dev", DevRoute.draw());
 
+    // Đưa Auth vào trong cụm API
     this.path("/api", ApiRoute.draw());
+    this.path("/api/auth", AuthRoute.draw());
 
     this.path("/admin", AdminRoute.draw());
-    this.path("/auth", AuthRoute.draw());
     this.path("/me", ProfileRoute.draw());
     this.path("/users", UserRoute.draw());
-
-    this.resource(HomeController, {
-      only: [RestActions.Index],
-    });
+    
+    this.get("/", action(HomeController, "index"));
   }
 }

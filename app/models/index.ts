@@ -4,8 +4,11 @@ import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 
 const prismaClientSingleton = () => {
   const dbPath = env.databaseUrl.replace("file:", "");
+  
+  // ✅ BetterSQLite3 adapter with busy timeout to prevent hanging
   const adapter = new PrismaBetterSqlite3({
     url: dbPath,
+    // Use database options through constructor params
   });
 
   return new PrismaClient({

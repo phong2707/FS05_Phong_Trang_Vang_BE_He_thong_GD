@@ -4,8 +4,8 @@ dotenv.config();
 export default {
   search: process.env.SEARCH,
   nodeEnv: process.env.NODE_ENV || "development",
-  appUrl: process.env.APP_URL || "http://localhost:3000",
-  port: process.env.PORT || "3000",
+  appUrl: process.env.APP_URL || "http://localhost:8000",
+  port: process.env.PORT || "8000",
   databaseUrl: process.env.DATABASE_URL || "file:./schema/app.db",
   dbMaxConnections: parseInt(process.env.DB_MAX_CONNECTIONS || "1"),
   sessionSecret: process.env.SESSION_SECRET || "your-session-secret",
@@ -14,7 +14,7 @@ export default {
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
   googleRedirectUri:
     process.env.GOOGLE_REDIRECT_URI ||
-    "http://localhost:3000/auth/google/callback",
+    "http://localhost:8000/auth/google/callback",
   supabaseUrl: process.env.SUPABASE_URL || "",
   supabaseKey: process.env.SUPABASE_KEY || "",
   cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || "",

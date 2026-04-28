@@ -1,16 +1,33 @@
 /**
  * Auth routes - controller dùng params.permit().
  */
-import { AuthController } from "@controllers/api";
+import { AuthController } from "@controllers";
+import { AuthController as ApiAuthController } from "@controllers/api";
 import {
   GoogleVerifyValidator,
   RefreshTokenValidator,
+  LoginValidator,
 } from "@validators/auth.validator";
 import { action, RailsRoute } from "ts-rails";
 
 export class AuthRoute extends RailsRoute {
   public draw() {
-    this.post("/refresh-token", action(AuthController, "refreshToken"), {
+    this.post("/login", action(AuthController, "login"), {
+      document: {
+        summary: "Login",
+        tags: ["Auth"],
+        body: LoginValidator,
+        responses: {
+          200: "Success",
+          401: "Unauthorized",
+          403: "Forbidden",
+          410: "Account deleted",
+          422: "Validation failed",
+        },
+      },
+    });
+
+    this.post("/refresh-token", action(ApiAuthController, "refreshToken"), {
       document: {
         summary: "Refresh token",
         tags: ["Auth"],
@@ -23,7 +40,7 @@ export class AuthRoute extends RailsRoute {
       },
     });
 
-    this.post("/google/verify", action(AuthController, "googleVerify"), {
+    this.post("/google/verify", action(ApiAuthController, "googleVerify"), {
       document: {
         summary: "Verify Google ID token",
         tags: ["Auth"],

@@ -72,10 +72,21 @@ export class Application extends RailsApplication {
   protected setupAppMiddlewares() {
     this.app.use(
       cors({
-        origin: process.env.CORS_ORIGIN || true,
+        origin: "http://localhost:5173",
         credentials: true,
       }),
     );
+
+    // ✅ FIX: Add JSON body parser middleware - CRITICAL for parsing POST request bodies
+    this.app.use(express.json({ limit: "50mb" }));
+    this.app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+    // ✅ Debug logging middleware to trace request flow
+    this.app.use((req, res, next) => {
+      const log = console.log;
+      log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+      next();
+    });
 
     const sessionMiddleware = initializeSession();
 

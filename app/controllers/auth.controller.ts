@@ -122,40 +122,130 @@ export class AuthController extends ApplicationController {
       "password",
     );
 
-    const user = await models.user.findFirst({
-      where: {
-        email,
-        status: UserStatus.ACTIVE,
-        deleted: false,
-      },
-      include: {
-        passwords: {
-          where: { deleted: false, type: PasswordType.PASSWORD },
-          orderBy: { createdAt: Prisma.SortOrder.desc },
-          take: 1,
+    // ✅ Add timeout to prevent database queries from hanging
+    const executeWithTimeout = async <T>(
+      promise: Promise<T>,
+      timeoutMs: number = 10000,
+    ): Promise<T> => {
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Database operation timeout")), timeoutMs),
+      );
+      return Promise.race([promise, timeoutPromise]);
+    };
+
+    try {
+      // Kiểm tra email có trong DB không (không cần kiểm tra status ở lần này)
+      const userForCheck = await executeWithTimeout(
+        models.user.findFirst({
+          where: { email },
+          select: { id: true, status: true, deleted: true },
+        }),
+      );
+
+      // Kiểm tra user bị xóa
+      if (userForCheck && userForCheck.deleted) {
+        return this.res.status(410).json({
+          success: false,
+          message: "Tài khoản này đã bị xóa.",
+        });
+      }
+
+      // Kiểm tra status PENDING (chờ admin phê duyệt)
+      if (userForCheck && userForCheck.status === UserStatus.PENDING) {
+        return this.res.status(403).json({
+          success: false,
+          message: "Tài khoản của bạn đang chờ Admin phê duyệt.",
+        });
+      }
+
+      // Kiểm tra status INACTIVE (bị khóa/cấm)
+      if (userForCheck && userForCheck.status === UserStatus.INACTIVE) {
+        return this.res.status(403).json({
+          success: false,
+          message: "Tài khoản của bạn đã bị khóa.",
+        });
+      }
+
+      // Lấy user với status ACTIVE, include passwords và roles
+      const user = await executeWithTimeout(
+        models.user.findFirst({
+          where: {
+            email,
+            status: UserStatus.ACTIVE,
+            deleted: false,
+          },
+          include: {
+            passwords: {
+              where: { deleted: false, type: PasswordType.PASSWORD },
+              orderBy: { createdAt: Prisma.SortOrder.desc },
+              take: 1,
+            },
+            roles: {
+              include: {
+                role: true,
+              },
+            },
+          },
+        }),
+      );
+
+      // Kiểm tra email không tồn tại hoặc không có password
+      if (!user || user.passwords.length === 0) {
+        return this.res.status(401).json({
+          success: false,
+          message: "Email hoặc mật khẩu không chính xác.",
+        });
+      }
+
+      // Kiểm tra mật khẩu
+      const isPasswordValid = await Security.verifyPassword(
+        password,
+        user.passwords[0].password,
+      );
+
+      if (!isPasswordValid) {
+        return this.res.status(401).json({
+          success: false,
+          message: "Email hoặc mật khẩu không chính xác.",
+        });
+      }
+
+      // Tạo JWT token
+      const token = generateToken({ id: user.id, email: user.email });
+
+      // Cập nhật lastLoginAt
+      await executeWithTimeout(
+        models.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() },
+        }),
+      );
+
+      // Trả về response JSON với user info và roles
+      return this.res.json({
+        success: true,
+        message: "Đăng nhập thành công",
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          status: user.status,
+          roles: user.roles.map((ur) => ({
+            id: ur.role.id,
+            code: ur.role.code,
+            name: ur.role.name,
+          })),
         },
-      },
-    });
-
-    if (
-      user &&
-      user.passwords.length > 0 &&
-      (await Security.verifyPassword(password, user.passwords[0].password))
-    ) {
-      this.req.session!.userId = user.id;
-      // const tokens = this.generateAuthTokens(user.id);
-
-      this.req.session!.save((err) => {
-        if (err) {
-          this.flash(FlashType.Errors, { msg: this.t("flash.user_not_found") });
-          return this.redirect("/auth");
-        }
-        this.flash(FlashType.Success, { msg: this.t("flash.login_success") });
-        this.redirect("/");
       });
-    } else {
-      this.flash(FlashType.Errors, { msg: this.t("flash.user_not_found") });
-      return this.redirect("/auth");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Có lỗi xảy ra";
+      return this.res.status(500).json({
+        success: false,
+        message,
+      });
     }
   }
 

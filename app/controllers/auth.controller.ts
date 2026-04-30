@@ -9,6 +9,7 @@ import {
   LoginValidator,
   UpdatePasswordValidator,
 } from "@validators/auth.validator";
+import { UpdateProfileValidator } from "@validators/profile.validator";
 import axios from "axios";
 import { Security } from "ts-rails";
 import { ApplicationController } from ".";
@@ -24,6 +25,7 @@ export type GoogleUser = {
 };
 
 export class AuthController extends ApplicationController {
+  [x: string]: any;
   async loginWithGoogle() {
     this.redirect(
       `https://accounts.google.com/o/oauth2/v2/auth?client_id=${env.googleClientId}&redirect_uri=${env.googleRedirectUri}&response_type=code&scope=profile email`,
@@ -334,6 +336,64 @@ export class AuthController extends ApplicationController {
       });
     }
   }
+
+  // Thêm vào file AuthController.ts
+
+async updateProfile() {
+  try {
+    // 1. Kiểm tra đăng nhập
+    if (!this.currentUser) {
+      return this.res.status(401).json({
+        success: false,
+        error: this.t("flash.login_first"),
+      });
+    }
+
+    // 2. Chỉ cần dùng permit để lấy dữ liệu đã được validate
+    const data = await this.params(UpdateProfileValidator).permit(
+      "firstName",
+      "lastName",
+      "middleName",
+      "phoneNumber",
+      "address",
+      "gender",
+      "avatarUrl"
+    );
+
+    // 3. Cập nhật vào DB
+    const updatedUser = await models.user.update({
+      where: { id: this.currentUser.id },
+      data: {
+        ...data,
+        updatedAt: new Date(),
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        middleName: true,
+        avatarUrl: true,
+        phoneNumber: true,
+        address: true,
+        gender: true,
+        status: true,
+      }
+    });
+
+    return this.res.json({
+      success: true,
+      message: "Cập nhật hồ sơ thành công",
+      user: updatedUser,
+    });
+  } catch (error: any) {
+    // Trả về lỗi validation chi tiết nếu có
+    return this.res.status(422).json({
+      success: false,
+      error: error.message || "Dữ liệu không hợp lệ",
+    });
+  }
+}
 
   // Change Password Page
   async new() {

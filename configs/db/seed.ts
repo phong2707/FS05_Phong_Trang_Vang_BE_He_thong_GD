@@ -79,8 +79,33 @@ async function seed() {
         passwords: defaultPassword, roles: { create: { roleId: roleAdmin.id } }, wallet: { create: { balance: 0 } }
       }
     });
+    const userPhong = await models.user.create({
+  data: {
+    firstName: "Phong",
+    lastName: "Nguyễn",
+    email: "phongnvpd10379@gmail.com",
+    status: "ACTIVE",
+    gender: "MALE",
+    phoneNumber: "0909999999",
+
+    passwords: defaultPassword,
+
+    roles: {
+      create: {
+        roleId: roleTeacher.id // 👉 đổi thành roleStudent.id nếu muốn làm học viên
+      }
+    },
+
+    wallet: {
+      create: {
+        balance: 1000000
+      }
+    }
+  }
+});
 
     const teachers = await Promise.all([
+
       models.user.create({ data: { firstName: "Tuấn", lastName: "Lê", email: "tuan.le@iviettech.vn", status: "ACTIVE", gender: "MALE", passwords: defaultPassword, roles: { create: { roleId: roleTeacher.id } }, wallet: { create: { balance: 15000000 } } } }),
       models.user.create({ data: { firstName: "Hương", lastName: "Trần", email: "huong.tran@iviettech.vn", status: "ACTIVE", gender: "FEMALE", passwords: defaultPassword, roles: { create: { roleId: roleTeacher.id } }, wallet: { create: { balance: 12000000 } } } }),
     ]);

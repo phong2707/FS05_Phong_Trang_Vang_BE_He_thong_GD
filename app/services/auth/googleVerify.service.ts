@@ -35,39 +35,46 @@ export class AuthGoogleVerifyService extends ApplicationService {
 
     const { email, given_name, family_name, picture, sub } = payload;
 
+    // 🔴 BUSINESS LOGIC: Kiểm tra email có tồn tại trong hệ thống không
+    // TUYỆT ĐỐI KHÔNG TẠO USER MỚI - Admin phải tạo trước
     let user = await this.models.user.findUnique({
       where: { email: email! },
-      include: { roles: { include: { role: true } } }, // Include roles để trả về thông tin đầy đủ
+      include: { roles: { include: { role: true } } },
     });
 
     if (!user) {
-      user = await this.models.user.create({
-        data: {
-          email: email!,
-          firstName: given_name || "",
-          lastName: family_name || "",
-          avatarUrl: picture || "",
-          status: "ACTIVE",
-          googleId: sub,
-          roles: {
-            create: [{ role: { connect: { code: "WORKER" } } }],
-          },
-        },
-        include: { roles: { include: { role: true } } },
-      });
-    } else {
-      // Cập nhật thông tin mới nhất từ Google (Social Sync)
-      user = await this.models.user.update({
-        where: { id: user.id },
-        data: {
-          firstName: given_name || user.firstName,
-          lastName: family_name || user.lastName,
-          avatarUrl: picture || user.avatarUrl,
-          googleId: user.googleId || sub, // Tránh overwrite nếu đã có
-        },
-        include: { roles: { include: { role: true } } },
-      });
+      throw new UnauthorizedError(
+        "Tài khoản (Email) này chưa được hệ thống ghi nhận. Vui lòng liên hệ Admin để tạo tài khoản.",
+      );
     }
+
+    // 🔴 BUSINESS LOGIC: Kiểm tra trạng thái người dùng (giống hệt logic login bằng mật khẩu)
+    if (user.deleted) {
+      throw new UnauthorizedError("Tài khoản của bạn đã bị xóa.");
+    }
+
+    if (user.status === "PENDING") {
+      throw new UnauthorizedError(
+        "Tài khoản của bạn đang chờ xét duyệt từ Admin.",
+      );
+    }
+
+    if (user.status === "INACTIVE") {
+      throw new UnauthorizedError("Tài khoản của bạn đã bị vô hiệu hóa.");
+    }
+
+    // ✅ Cập nhật thông tin từ Google (Social Sync) và lastLoginAt
+    user = await this.models.user.update({
+      where: { id: user.id },
+      data: {
+        firstName: given_name || user.firstName,
+        lastName: family_name || user.lastName,
+        avatarUrl: picture || user.avatarUrl,
+        googleId: user.googleId || sub, // Tránh overwrite nếu đã có
+        lastLoginAt: new Date(), // Cập nhật thời gian đăng nhập cuối cùng
+      },
+      include: { roles: { include: { role: true } } },
+    });
 
     // 1. Tạo JWT Access Token & Refresh Token
     // Thường mình sẽ đưa thêm role/permissions vào AccessToken để Backend không phải query DB nhiều lần

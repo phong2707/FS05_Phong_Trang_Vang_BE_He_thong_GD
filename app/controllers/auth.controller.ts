@@ -214,12 +214,14 @@ export class AuthController extends ApplicationController {
       const token = generateToken({ id: user.id, email: user.email });
 
       // Cập nhật lastLoginAt
-      await executeWithTimeout(
-        models.user.update({
-          where: { id: user.id },
-          data: { lastLoginAt: new Date() },
-        }),
-      );
+      // ✅ Cập nhật lastLoginAt trực tiếp DB để tránh lệch Prisma Client
+await executeWithTimeout(
+  models.$executeRaw`
+    UPDATE users
+    SET last_login_at = CURRENT_TIMESTAMP
+    WHERE id = ${user.id}
+  `,
+);
 
       // Trả về response JSON với user info và roles
       return this.res.json({

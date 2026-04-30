@@ -249,6 +249,92 @@ export class AuthController extends ApplicationController {
     }
   }
 
+  /**
+   * Lấy thông tin profile của user hiện tại (Me endpoint)
+   * GET /auth/me
+   * Requires: User phải đã login
+   * Returns: { success: true, user: { id, email, firstName, lastName, avatarUrl, phoneNumber, address, status, roles: [...] } }
+   */
+  async me() {
+    // Kiểm tra user đã login hay chưa
+    if (!this.currentUser) {
+      return this.res.status(401).json({
+        success: false,
+        error: this.t("flash.login_first"),
+      });
+    }
+
+    try {
+      // Query user với roles
+      const user = await models.user.findUnique({
+        where: { id: this.currentUser.id },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          middleName: true,
+          avatarUrl: true,
+          phoneNumber: true,
+          address: true,
+          gender: true,
+          status: true,
+          createdAt: true,
+          roles: {
+            select: {
+              role: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Nếu user không tìm thấy (edge case)
+      if (!user) {
+        return this.res.status(404).json({
+          success: false,
+          error: this.t("flash.user_not_found"),
+        });
+      }
+
+      // Trả về user info với roles
+      return this.res.json({
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          middleName: user.middleName,
+          fullName: `${user.firstName} ${user.lastName}`,
+          avatarUrl: user.avatarUrl,
+          phoneNumber: user.phoneNumber,
+          address: user.address,
+          gender: user.gender,
+          status: user.status,
+          createdAt: user.createdAt,
+          roles: user.roles.map((ur) => ({
+            id: ur.role.id,
+            code: ur.role.code,
+            name: ur.role.name,
+          })),
+        },
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Lỗi server";
+      return this.res.status(500).json({
+        success: false,
+        error: message,
+      });
+    }
+  }
+
   // Change Password Page
   async new() {
     const email = this.req.params.id;

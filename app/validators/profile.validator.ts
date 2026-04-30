@@ -1,15 +1,18 @@
-import { IsOptional, IsString, MinLength } from "class-validator";
+import { IsOptional, IsString } from "class-validator";
 
 export class UpdateProfileValidator {
   @IsOptional()
   @IsString()
-  @MinLength(1)
   firstName?: string;
 
   @IsOptional()
   @IsString()
-  @MinLength(1)
   lastName?: string;
+
+  // Bắt buộc phải thêm trường này vì Frontend đang gửi lên
+  @IsOptional()
+  @IsString()
+  middleName?: string; 
 
   @IsOptional()
   @IsString()

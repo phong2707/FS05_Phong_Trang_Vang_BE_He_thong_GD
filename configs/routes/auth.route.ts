@@ -10,7 +10,7 @@
       );
       this.post("/login", action(AuthController, "login"));
       this.get("/me", action(AuthController, "me"));
-
+      this.put("/me", action(AuthController, "updateProfile"));
       this.resource(AuthController);
     }
   }

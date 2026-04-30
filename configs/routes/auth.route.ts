@@ -9,6 +9,7 @@
         action(AuthController, "loginWithGoogleRedirect"),
       );
       this.post("/login", action(AuthController, "login"));
+      this.get("/me", action(AuthController, "me"));
 
       this.resource(AuthController);
     }

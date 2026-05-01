@@ -50,7 +50,7 @@ export class ClassGroupController extends ApplicationController {
    */
   
 
-async delete() {
+async deleteClassGroup() {
   const { id } = this.req.params;
 
   const result = await this.service.deleteClassGroup(id);

@@ -103,7 +103,6 @@ async function seed() {
     }
   }
 });
-
     const teachers = await Promise.all([
 
       models.user.create({ data: { firstName: "Tuấn", lastName: "Lê", email: "tuan.le@iviettech.vn", status: "ACTIVE", gender: "MALE", passwords: defaultPassword, roles: { create: { roleId: roleTeacher.id } }, wallet: { create: { balance: 15000000 } } } }),

@@ -189,5 +189,24 @@
     "first_time_password": "You are changing your password for the first time. Please log in to your account using another method before changing your password.",
     "password_mismatch": "Password and confirmation do not match.",
     "password_changed_relogin": "Change password successfully. Please login to confirm your new password!"
+  },
+
+  "mailer": {
+    "subjects": {
+      "password_reset": "Password Reset Request - LMS Platform"
+    },
+    "password_reset": {
+      "title": "Reset Your Password",
+      "greeting": "Hello,",
+      "request_msg": "We received a request to reset the password for: {{email}}",
+      "instruction": "Here is your OTP code (valid for 15 minutes):",
+      "button": "Back to Login",
+      "warning": "If you didn't request this, please ignore this email."
+    },
+    "common": {
+      "regards": "Best regards,",
+      "team": "LMS Support Team"
+    }
   }
+
 }

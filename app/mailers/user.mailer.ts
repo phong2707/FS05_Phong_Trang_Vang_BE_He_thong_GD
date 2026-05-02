@@ -28,14 +28,14 @@ export class UserMailer extends ApplicationMailer {
     });
   }
 
-  static async passwordReset(to: string, resetLink: string): Promise<void> {
+  static async passwordReset(to: string, otp: string): Promise<void> {
     const appName = i18next.t("app_name");
 
     await this.deliver({
       to,
       subject: i18next.t("mailer.subjects.password_reset"),
       html: this.render("user.mailer/password_reset", {
-        resetLink,
+        otp,
         to,
         appName,
       }),

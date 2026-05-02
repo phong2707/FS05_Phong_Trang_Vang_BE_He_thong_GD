@@ -61,3 +61,32 @@ export class RefreshTokenValidator {
   @MinLength(1)
   refreshToken!: string;
 }
+
+export class ForgotPasswordValidator {
+  @IsNotEmpty({ message: "Email là bắt buộc" })
+  @IsEmail({}, { message: "Email không hợp lệ" })
+  email!: string;
+}
+
+export class VerifyOtpValidator {
+  @IsNotEmpty()
+  @IsEmail()
+  email!: string;
+
+  @IsNotEmpty({ message: "Mã OTP là bắt buộc" })
+  @IsString()
+  @MinLength(6)
+  otp!: string;
+}
+
+export class ResetPasswordValidator {
+  @IsNotEmpty({ message: "Mật khẩu mới là bắt buộc" })
+  @IsString()
+  @MinLength(6)
+  password!: string;
+
+  @IsNotEmpty()
+  @IsString()
+  passwordConfirmation!: string;
+}
+

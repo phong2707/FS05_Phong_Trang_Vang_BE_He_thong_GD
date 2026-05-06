@@ -1,4 +1,3 @@
-import { FlashType } from "@configs/enum";
 import { Prisma } from "@db";
 import models from "@models";
 import {
@@ -9,7 +8,7 @@ import { NotFoundError } from "ts-rails";
 import { AdminController } from "./admin.controller";
 
 export class AdminUserController extends AdminController {
-  async index() {
+  async index(): Promise<any> {
     const search = String(this.req.query.search || "").trim();
     const sortBy = String(this.req.query.sortBy || "createdAt");
     const sortOrder = String(this.req.query.sortOrder || "desc") as
@@ -43,22 +42,10 @@ export class AdminUserController extends AdminController {
       models.user.count({ where }),
     ]);
 
-    const q: Record<string, string> = {};
-    if (search) q.search = search;
-    if (sortBy !== "createdAt") q.sortBy = sortBy;
-    if (sortOrder !== "desc") q.sortOrder = sortOrder;
-    if (filterStatus) q.filterStatus = filterStatus;
-    if (perPage !== 10) q.perPage = String(perPage);
-    const buildQueryString = () =>
-      Object.keys(q).length ? "&" + new URLSearchParams(q).toString() : "";
-    const buildSortUrl = (col: string) => {
-      const next = sortBy === col && sortOrder === "asc" ? "desc" : "asc";
-      return `/admin/users?${new URLSearchParams({ ...q, sortBy: col, sortOrder: next, page: "1" }).toString()}`;
-    };
-
     const roles = await models.role.findMany({ where: { deleted: false } });
 
-    this.render("admin/user.view/index", {
+    // Đã fix: Trả về JSON cho Frontend
+    this.res.json({
       users,
       roles,
       total,
@@ -68,8 +55,6 @@ export class AdminUserController extends AdminController {
       sortBy,
       sortOrder,
       filterStatus,
-      buildQueryString,
-      buildSortUrl,
     });
   }
 
@@ -87,8 +72,8 @@ export class AdminUserController extends AdminController {
       }),
     ]);
 
-    this.render("admin/user.view/show", {
-      user: this.req.user,
+    // Đã fix: Trả về JSON
+    return this.res.json({
       targetUser,
       roles,
       features,
@@ -97,8 +82,9 @@ export class AdminUserController extends AdminController {
 
   async new() {
     const roles = await models.role.findMany({ where: { deleted: false } });
-    this.render("admin/user.view/new", {
-      user: this.req.user,
+    
+    // Đã fix: Trả về JSON
+    return this.res.json({
       roles,
     });
   }
@@ -127,10 +113,12 @@ export class AdminUserController extends AdminController {
       },
     });
 
-    this.flash(FlashType.Success, {
-      msg: this.t("flash.user_created", { email: user.email }),
+    // Đã fix: Trả về JSON thay vì redirect
+    return this.res.json({
+      success: true,
+      message: "Tạo người dùng thành công",
+      user,
     });
-    this.redirect("/admin/users");
   }
 
   async edit() {
@@ -147,8 +135,8 @@ export class AdminUserController extends AdminController {
       }),
     ]);
 
-    this.render("admin/user.view/edit", {
-      user: this.req.user,
+    // ĐÃ FIX LỖI "search": Chỉ trả về đúng 3 biến có trong hàm này
+    return this.res.json({
       targetUser,
       roles,
       features,
@@ -214,8 +202,11 @@ export class AdminUserController extends AdminController {
       }
     }
 
-    this.flash(FlashType.Success, { msg: this.t("flash.user_updated") });
-    this.redirect(`/admin/users/${id}`);
+    // Đã fix: Trả về JSON thay vì redirect
+    return this.res.json({ 
+      success: true, 
+      message: "Cập nhật thông tin thành công" 
+    });
   }
 
   async destroy() {
@@ -224,10 +215,12 @@ export class AdminUserController extends AdminController {
       where: { id },
       data: { deleted: true },
     });
-    this.flash(FlashType.Success, {
-      msg: this.t("flash.user_deleted_success"),
+    
+    // Đã fix: Trả về JSON thay vì redirect
+    return this.res.json({
+      success: true,
+      message: "Xóa người dùng thành công",
     });
-    this.redirect("/admin/users");
   }
 
   private async getUserWithPermissions(userId: string) {

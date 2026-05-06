@@ -119,6 +119,11 @@ export class Application extends RailsApplication {
     // 1. App Assets
     this.app.use(express.static(appPath("assets")));
 
+    
+// ✅ 2. UPLOADS (THÊM DÒNG NÀY)
+    this.app.use("/uploads", express.static("uploads"));
+
+
     // 2. Vendor Assets (Refactored to be cleaner)
     const vendors = [
       { path: "/css", dir: vendorPath("bootstrap", "dist/css") },

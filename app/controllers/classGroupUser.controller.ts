@@ -11,26 +11,30 @@ export class ClassGroupUserController extends ApplicationController {
     if (!this.requireLogin()) return;
 
     const { classGroupId } = this.req.params;
-    const { studentId } = this.req.body;
+    const { email } = this.req.body;
 
-    if (!studentId) {
+    if (!email) {
       return this.res.status(400).json({
         success: false,
-        message: "studentId là bắt buộc",
+        message: "email là bắt buộc",
       });
     }
 
     try {
       const result = await this.service.enrollStudent(
         classGroupId,
-        studentId
+        email
       );
       return this.res.json({ success: true, data: result });
-    } catch (err: any) {
-      return this.res
-        .status(400)
-        .json({ success: false, message: err.message });
-    }
+    } catch (error: unknown) {
+  const message =
+    error instanceof Error ? error.message : "Có lỗi xảy ra";
+
+  return this.res.status(400).json({
+    success: false,
+    message,
+  });
+}
   }
 
   /**

@@ -8,6 +8,8 @@ import { ApiV1DevRoute } from "./dev";
 
 import { ClassGroupRoute } from "./classGroup.route";
 
+import {TaskmanRoute} from "./taskman.route";
+
 
 export class ApiV1Route extends RailsRoute {
   public draw() {
@@ -20,6 +22,8 @@ export class ApiV1Route extends RailsRoute {
     this.path(action(ValidateUserLoginMiddleware));
 
     this.path("/class-groups", ClassGroupRoute.draw());
+
+    this.path("/", TaskmanRoute.draw());
 
     // Permission routes - action(Controller, "index") tạo instance mới mỗi request
     this.get("/permissions/me", action(MyPermissionController, "index"));

@@ -1,8 +1,7 @@
-import type { PrismaClient as PrismaClientType } from "@prisma/client";
 import models from "@models";
-
-// ✅ ép kiểu cho TypeScript
-const prisma = models as unknown as PrismaClientType;
+// ✅ Sử dụng typeof models để lấy kiểu dữ liệu chính xác từ instance đã khởi tạo
+type PrismaClientType = typeof models;
+const prisma = models as PrismaClientType;
 
 export class ClassGroupUserService {
   // async enrollStudent(classGroupId: string, studentId: string) {
@@ -120,3 +119,4 @@ export class ClassGroupUserService {
 }
 
 }
+

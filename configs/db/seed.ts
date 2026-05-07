@@ -28,8 +28,7 @@ async function seed() {
     await models.subject.deleteMany({});
     await models.courseReview.deleteMany({});
     await models.transaction.deleteMany({});
-    await models.courseTeacher.deleteMany({});
-    await models.course.deleteMany({});
+    await models.course.deleteMany({}); // Đã xóa model.courseTeacher
     await models.message.deleteMany({});
     await models.notification.deleteMany({});
     await models.request.deleteMany({});
@@ -100,32 +99,15 @@ async function seed() {
         passwords: defaultPassword, roles: { create: { roleId: roleAdmin.id } }, wallet: { create: { balance: 0 } }
       }
     });
+    
     const userPhong = await models.user.create({
-  data: {
-    firstName: "Phong",
-    lastName: "Nguyễn",
-    email: "phongnvpd10379@gmail.com",
-    status: "ACTIVE",
-    gender: "MALE",
-    phoneNumber: "0909999999",
-
-    passwords: defaultPassword,
-
-    roles: {
-      create: {
-        roleId: roleTeacher.id // 👉 đổi thành roleStudent.id nếu muốn làm học viên
+      data: {
+        firstName: "Phong", lastName: "Nguyễn", email: "phongnvpd10379@gmail.com", status: "ACTIVE", gender: "MALE", phoneNumber: "0909999999",
+        passwords: defaultPassword, roles: { create: { roleId: roleTeacher.id } }, wallet: { create: { balance: 1000000 } }
       }
-    },
+    });
 
-    wallet: {
-      create: {
-        balance: 1000000
-      }
-    }
-  }
-});
     const teachers = await Promise.all([
-
       models.user.create({ data: { firstName: "Tuấn", lastName: "Lê", email: "tuan.le@iviettech.vn", status: "ACTIVE", gender: "MALE", passwords: defaultPassword, roles: { create: { roleId: roleTeacher.id } }, wallet: { create: { balance: 15000000 } } } }),
       models.user.create({ data: { firstName: "Hương", lastName: "Trần", email: "huong.tran@iviettech.vn", status: "ACTIVE", gender: "FEMALE", passwords: defaultPassword, roles: { create: { roleId: roleTeacher.id } }, wallet: { create: { balance: 12000000 } } } }),
     ]);
@@ -148,30 +130,44 @@ async function seed() {
     ));
 
     // ==========================================
-    // 4. TẠO KHÓA HỌC & MÔN HỌC
+    // 4. TẠO KHÓA HỌC & MÔN HỌC (Đã sửa logic gán giáo viên)
     // ==========================================
     console.log("📚 Đang tạo Khóa học và phân công giảng dạy...");
 
     const courseWeb = await models.course.create({
       data: {
-        title: "Fullstack Web Development (React & Node.js)", description: "Trở thành lập trình viên Fullstack thực chiến với ReactJS, Next.js, Node.js, Express và Prisma ORM.",
-        price: 4500000, status: "PUBLISHED", adminId: admin.id, thumbnailUrl: "https://placehold.co/800x400/2563eb/white?text=Fullstack+Web",
-        teachers: { create: [{ teacherId: teachers[0].id, role: "MAIN_TEACHER" }, { teacherId: ta.id, role: "ASSISTANT" }] }
+        title: "Fullstack Web Development (React & Node.js)", 
+        description: "Trở thành lập trình viên Fullstack thực chiến với ReactJS, Next.js, Node.js, Express và Prisma ORM.",
+        price: 4500000, 
+        status: "PUBLISHED", 
+        adminId: admin.id, 
+        thumbnailUrl: "https://placehold.co/800x400/2563eb/white?text=Fullstack+Web"
       }
     });
 
     const courseQA = await models.course.create({
       data: {
-        title: "Software Testing & QA (ISTQB Foundation)", description: "Khóa học Tester toàn diện từ Manual đến Automation Testing (Selenium/Cypress).",
-        price: 3200000, status: "PUBLISHED", adminId: admin.id, thumbnailUrl: "https://placehold.co/800x400/16a34a/white?text=Software+Testing",
-        teachers: { create: [{ teacherId: teachers[1].id, role: "MAIN_TEACHER" }] }
+        title: "Software Testing & QA (ISTQB Foundation)", 
+        description: "Khóa học Tester toàn diện từ Manual đến Automation Testing (Selenium/Cypress).",
+        price: 3200000, 
+        status: "PUBLISHED", 
+        adminId: admin.id, 
+        thumbnailUrl: "https://placehold.co/800x400/16a34a/white?text=Software+Testing"
       }
     });
 
-    // Môn học
-    const subReact = await models.subject.create({ data: { courseId: courseWeb.id, name: "Frontend với ReactJS & TypeScript", sortOrder: 1 } });
-    const subNode = await models.subject.create({ data: { courseId: courseWeb.id, name: "Backend với Node.js & Express", sortOrder: 2 } });
-    const subISTQB = await models.subject.create({ data: { courseId: courseQA.id, name: "Nền tảng kiểm thử (ISTQB)", sortOrder: 1 } });
+    // Môn học - Gán trực tiếp teacherId vào đây
+    const subReact = await models.subject.create({ 
+      data: { courseId: courseWeb.id, teacherId: teachers[0].id, name: "Frontend với ReactJS & TypeScript", sortOrder: 1 } 
+    });
+    
+    const subNode = await models.subject.create({ 
+      data: { courseId: courseWeb.id, teacherId: ta.id, name: "Backend với Node.js & Express", sortOrder: 2 } // Giao môn Node cho bạn TA hoặc một giáo viên khác
+    });
+    
+    const subISTQB = await models.subject.create({ 
+      data: { courseId: courseQA.id, teacherId: teachers[1].id, name: "Nền tảng kiểm thử (ISTQB)", sortOrder: 1 } 
+    });
 
     // ==========================================
     // 5. TẠO LỚP HỌC (CLASS GROUPS) & ENROLLMENT
@@ -180,7 +176,6 @@ async function seed() {
     const classFS2 = await models.classGroup.create({ data: { subjectId: subNode.id, name: "FS-K40-Online" } });
     const classQA1 = await models.classGroup.create({ data: { subjectId: subISTQB.id, name: "QA-K22-Offline" } });
 
-    // 8 bạn đầu học Fullstack, 4 bạn sau học QA
     await Promise.all(students.slice(0, 8).map((s: { id: any; }) => models.classGroupUser.createMany({ data: [
       { userId: s.id, classGroupId: classFS1.id, role: "STUDENT" },
       { userId: s.id, classGroupId: classFS2.id, role: "STUDENT" }
@@ -207,7 +202,6 @@ async function seed() {
     console.log("📝 Đang tạo Ngân hàng câu hỏi và Đề thi...");
     const typeSingle = await models.questionType.create({ data: { name: "Single Choice" } });
 
-    // React Questions
     const q1 = await models.question.create({
       data: {
         subjectId: subReact.id, teacherId: teachers[0].id, typeId: typeSingle.id, content: "Virtual DOM trong React hoạt động như thế nào?", explanation: "Virtual DOM tạo ra một bản sao của DOM thật, so sánh sự thay đổi (diffing) và chỉ cập nhật những node cần thiết.",
@@ -230,7 +224,6 @@ async function seed() {
       }
     });
 
-    // Test
     const testReact = await models.test.create({
       data: {
         subjectId: subReact.id, title: "Quiz 1: Kiến thức nền tảng React", testType: "QUIZ", durationMinutes: 15, maxAttempts: 3,
@@ -243,7 +236,6 @@ async function seed() {
     // ==========================================
     console.log("📈 Đang ghi nhận kết quả học tập & Thanh toán...");
 
-    // Học sinh 1 học bài và làm bài
     await models.learningProgress.createMany({
       data: [
         { studentId: students[0].id, videoId: v1.id, status: "COMPLETED", completedAt: new Date() },
@@ -265,7 +257,6 @@ async function seed() {
       }
     });
 
-    // Thanh toán hóa đơn (Mô phỏng 5 học viên mua khóa Web, 2 học viên mua QA)
     await Promise.all(students.slice(0, 5).map((s: { id: any; }, i: any) => 
       models.transaction.create({ data: { studentId: s.id, courseId: courseWeb.id, amount: 4500000, paymentMethod: "VNPAY", status: "SUCCESS", referenceCode: `VNPAY_WEB_${i}` } })
     ));

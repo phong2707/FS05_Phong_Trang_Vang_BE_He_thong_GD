@@ -52,17 +52,38 @@ async function seed() {
     const roleTA = await models.role.create({ data: { code: "TA", name: "Trợ giảng", description: "Hỗ trợ học tập, trả lời forum" } });
     const roleStudent = await models.role.create({ data: { code: "STUDENT", name: "Học viên", description: "Người dùng học tập" } });
 
+    // --- 1. Tính năng: Quản lý Khóa học ---
     const featCourse = await models.feature.create({ data: { code: "FEAT_COURSE", name: "Quản lý Khóa học", type: "MENU_GROUP" } });
     const permCourseView = await models.permission.create({ data: { code: "COURSE_VIEW", name: "Xem Khóa học", featureId: featCourse.id } });
     const permCourseEdit = await models.permission.create({ data: { code: "COURSE_EDIT", name: "Thêm/Sửa/Xóa Khóa học", featureId: featCourse.id } });
 
+    // --- 2. BỔ SUNG: Tính năng: Quản trị Hệ thống & Quản lý Người dùng ---
+    /// --- 2. BỔ SUNG: Tính năng: Quản trị Hệ thống & Quản lý Người dùng ---
+    // ĐÃ FIX: Đổi code thành chữ viết tắt "AM" và "UM" cho khớp với Route
+    const featSystem = await models.feature.create({ data: { code: "AM", name: "Quản trị Hệ thống", type: "SYSTEM" } });
+    const featUser = await models.feature.create({ data: { code: "UM", name: "Quản lý Người dùng", type: "FEATURE", parentId: featSystem.id } });
+    
+    // Tạo các hành động (Read, Create, Update, Delete) cho User
+    const permUserRead = await models.permission.create({ data: { code: "READ", name: "Xem danh sách", featureId: featUser.id } });
+    const permUserCreate = await models.permission.create({ data: { code: "CREATE", name: "Thêm mới", featureId: featUser.id } });
+    const permUserUpdate = await models.permission.create({ data: { code: "UPDATE", name: "Cập nhật", featureId: featUser.id } });
+    const permUserDelete = await models.permission.create({ data: { code: "DELETE", name: "Xóa", featureId: featUser.id } });
+
+    // --- 3. Phân quyền (Mapping) ---
     await models.roleToPermission.createMany({
       data: [
+        // Quyền Khóa học
         { roleId: roleAdmin.id, permissionId: permCourseView.id },
         { roleId: roleAdmin.id, permissionId: permCourseEdit.id },
         { roleId: roleTeacher.id, permissionId: permCourseView.id },
         { roleId: roleTeacher.id, permissionId: permCourseEdit.id },
         { roleId: roleStudent.id, permissionId: permCourseView.id },
+
+        // Quyền User (Chỉ Admin mới có)
+        { roleId: roleAdmin.id, permissionId: permUserRead.id },
+        { roleId: roleAdmin.id, permissionId: permUserCreate.id },
+        { roleId: roleAdmin.id, permissionId: permUserUpdate.id },
+        { roleId: roleAdmin.id, permissionId: permUserDelete.id },
       ],
     });
 

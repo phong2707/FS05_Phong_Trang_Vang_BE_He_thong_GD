@@ -9,7 +9,13 @@ export class ValidateUserLoginMiddleware extends ApplicationMiddleware {
 
   public async execute(req: Request, res: Response, next: NextFunction) {
     if (!req.user) {
-      const isApiRequest = req.originalUrl.includes("/api");
+      // === GẮN CAMERA THEO DÕI LOGIC BACKEND ===
+    console.log("\n--- BẮT ĐẦU KIỂM TRA PHÂN QUYỀN ---");
+    console.log("1. Đầu vào req.user:", req.user ? `CÓ (${(req.user as any).email})` : "KHÔNG CÓ (NULL)");
+    console.log("2. Header Token:", req.headers.authorization ? "ĐÃ GỬI LÊN" : "TRỐNG");
+    // ==========================================
+
+    const isApiRequest = req.originalUrl.includes("/api") || req.headers["accept"]?.includes("application/json") || req.xhr;
       const t = (res.locals?.t as (k: string) => string) || ((k: string) => k);
       if (isApiRequest) {
         return res

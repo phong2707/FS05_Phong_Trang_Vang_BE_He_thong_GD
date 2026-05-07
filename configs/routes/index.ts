@@ -45,8 +45,7 @@ export class Route extends RailsRoute {
     // Đưa Auth vào trong cụm API
     this.path("/api", ApiRoute.draw());
     this.path("/api/auth", AuthRoute.draw());
-
-    this.path("/admin", AdminRoute.draw());
+    this.path("/api/admin", AdminRoute.draw());
     this.path("/me", ProfileRoute.draw());
     this.path("/users", UserRoute.draw());
     

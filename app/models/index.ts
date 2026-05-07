@@ -1,4 +1,4 @@
-import env from "@configs/env";
+  import env from "@configs/env";
 import { PrismaClient } from "@db";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 

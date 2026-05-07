@@ -1,9 +1,9 @@
 import models from "@models";
-import type { PrismaClient as PrismaClientType } from "@prisma/client";
 import { ApplicationService } from "./application.service";
 
-// ✅ ép kiểu giống ClassGroupUserService
-const prisma = models as unknown as PrismaClientType;
+// ✅ Sử dụng typeof models để tránh lỗi không tìm thấy member trong @prisma/client
+type PrismaClientType = typeof models;
+const prisma = models as PrismaClientType;
 
 export class TaskmanService extends ApplicationService {
   async createLink(subjectId: string, title: string, url: string) {

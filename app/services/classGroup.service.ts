@@ -79,4 +79,15 @@ export class ClassGroupService extends ApplicationService {
 
   return { deleted: true };
 }
+
+/**
+ * Lấy danh sách nhóm lớp (dùng để test / ghi danh sinh viên)
+ */
+async list() {
+  return models.$queryRaw<any[]>`
+    SELECT id, name, status, created_at
+    FROM class_groups
+    ORDER BY created_at DESC
+  `;
+}
 }

@@ -9,6 +9,11 @@ import { TeacherRoute } from "../../teacher.route";
 import { CourseRoute } from "../../course.route";
 import { ClassGroupRoute } from "./classGroup.route";
 
+import { ClassGroupRoute } from "./classGroup.route";
+
+import {TaskmanRoute} from "./taskman.route";
+
+
 export class ApiV1Route extends RailsRoute {
   public draw() {
     if (env.nodeEnv === "development") {
@@ -28,10 +33,16 @@ this.path(action(ValidateUserLoginMiddleware));
 
     this.path(action(ValidateUserLoginMiddleware));
 
+    this.path("/class-groups", ClassGroupRoute.draw());
+
+    this.path("/", TaskmanRoute.draw());
+
     // Permission routes - action(Controller, "index") tạo instance mới mỗi request
     this.get("/permissions/me", action(MyPermissionController, "index"));
 
     // Admin routes - yêu cầu AM permission
     this.path("/admin", ApiV1AdminRoute.draw());
+
+
   }
 }

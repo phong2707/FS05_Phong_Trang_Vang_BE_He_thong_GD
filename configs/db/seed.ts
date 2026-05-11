@@ -8,21 +8,39 @@ async function seed() {
     // ==========================================
     // 1. DỌN DẸP DỮ LIỆU CŨ (Thứ tự quan trọng)
     // ==========================================
-    console.log("🧹 Đang dọn dẹp dữ liệu cũ...");
-    const deleteOrder = [
-      models.userQuestionAnswer, models.submission, models.testQuestion, models.test,
-      models.learningProgress, models.video, models.taskman, models.questionAnswer,
-      models.question, models.questionType, models.forumPost, models.forum,
-      models.schedule, models.classGroupUser, models.classGroup, models.subject,
-      models.courseReview, models.transaction, models.course,
-      models.message, models.notification, models.request, models.userToPermission,
-      models.userToRole, models.wallet, models.password, models.roleToPermission,
-      models.permission, models.feature, models.role, models.user
-    ];
-
-    for (const model of deleteOrder) {
-      await (model as any).deleteMany({});
-    }
+    console.log("🧹 Đang dọn dẹp dữ liệu cũ (Cascading)...");
+    
+    await models.userQuestionAnswer.deleteMany({});
+    await models.submission.deleteMany({});
+    await models.testQuestion.deleteMany({});
+    await models.test.deleteMany({});
+    await models.learningProgress.deleteMany({});
+    await models.video.deleteMany({});
+    await models.taskman.deleteMany({});
+    await models.questionAnswer.deleteMany({});
+    await models.question.deleteMany({});
+    await models.questionType.deleteMany({});
+    await models.forumPost.deleteMany({});
+    await models.forum.deleteMany({});
+    await models.schedule.deleteMany({});
+    await models.classGroupUser.deleteMany({});
+    await models.classGroup.deleteMany({});
+    await models.subject.deleteMany({});
+    await models.courseReview.deleteMany({});
+    await models.transaction.deleteMany({});
+    await models.course.deleteMany({}); // Đã xóa model.courseTeacher
+    await models.message.deleteMany({});
+    await models.notification.deleteMany({});
+    await models.request.deleteMany({});
+    await models.userToPermission.deleteMany({});
+    await models.userToRole.deleteMany({});
+    await models.wallet.deleteMany({});
+    await models.password.deleteMany({});
+    await models.roleToPermission.deleteMany({});
+    await models.permission.deleteMany({});
+    await models.feature.deleteMany({});
+    await models.role.deleteMany({});
+    await models.user.deleteMany({});
 
     // ==========================================
     // 2. TẠO ROLES & FEATURES
@@ -116,7 +134,7 @@ async function seed() {
     ));
 
     // ==========================================
-    // 4. KHÓA HỌC & PHÂN CÔNG (FIXED)
+    // 4. TẠO KHÓA HỌC & MÔN HỌC (Đã sửa logic gán giáo viên)
     // ==========================================
     console.log("📚 Đang tạo Khóa học...");
 

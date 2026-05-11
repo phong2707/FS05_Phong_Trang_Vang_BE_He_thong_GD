@@ -2,7 +2,7 @@
  * Auth routes - controller dùng params.permit().
  */
 import { AuthController } from "@controllers";
-import { AuthController as ApiAuthController } from "@controllers/api";
+import { AuthController as ApiAuthController } from "@controllers";
 import {
   GoogleVerifyValidator,
   RefreshTokenValidator,
@@ -51,6 +51,6 @@ export class AuthRoute extends RailsRoute {
           422: "Validation failed",
         },
       },
-    });
+    });  
   }
 }

@@ -4,6 +4,16 @@ import { ClassGroupService } from "@services/classGroup.service";
 export class ClassGroupController extends ApplicationController {
   private service = new ClassGroupService();
 
+  async index() {
+    if (!this.requireLogin()) return;
+
+    const groups = await this.service.list();
+    return this.res.json({
+      success: true,
+      data: groups,
+    });
+  }
+
   /**
    * POST /class-groups
    * Body: { subjectId, name }

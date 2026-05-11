@@ -1,5 +1,5 @@
 import env from "@configs/env";
-import { HomeController } from "@controllers";
+import { AdminUserController, HomeController } from "@controllers";
 import {
   CurrentUserMiddleware,
   Permission,
@@ -48,6 +48,7 @@ export class Route extends RailsRoute {
     this.path("/api/auth", AuthRoute.draw());
     this.path("/api/admin", AdminRoute.draw());
     this.path("/me", ProfileRoute.draw());
+    this.path("/users/stats", action(AdminUserController, "stats"));
     this.path("/users", UserRoute.draw());
 
 // Home

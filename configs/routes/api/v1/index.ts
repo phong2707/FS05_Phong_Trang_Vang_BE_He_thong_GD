@@ -14,6 +14,11 @@ import { ClassGroupRoute } from "./classGroup.route";
 import {TaskmanRoute} from "./taskman.route";
 
 
+import { ClassGroupRoute } from "./classGroup.route";
+
+import {TaskmanRoute} from "./taskman.route";
+
+
 export class ApiV1Route extends RailsRoute {
   public draw() {
     if (env.nodeEnv === "development") {

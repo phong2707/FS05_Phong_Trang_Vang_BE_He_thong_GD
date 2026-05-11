@@ -119,7 +119,7 @@ export class Application extends RailsApplication {
     // 1. App Assets
     this.app.use(express.static(appPath("assets")));
 
-    
+
 // ✅ 2. UPLOADS (THÊM DÒNG NÀY)
     this.app.use("/uploads", express.static("uploads"));
 

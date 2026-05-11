@@ -2,37 +2,51 @@ import multer from "multer";
 import path from "path";
 import { randomUUID } from "crypto";
 
-// nơi lưu file
+// ✅ Danh sách đuôi file nguy hiểm (BLACKLIST)
+const BLOCKED_EXTENSIONS = [
+  ".exe",
+  ".sh",
+  ".bat",
+  ".cmd",
+  ".js",
+];
+
+// ✅ Storage
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
     cb(null, "uploads/");
   },
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
+    const ext = path.extname(file.originalname).toLowerCase();
     cb(null, `${randomUUID()}${ext}`);
   },
 });
 
-// lọc loại file cho phép
+// ✅ File filter (KEY POINT)
 const fileFilter: multer.Options["fileFilter"] = (_req, file, cb) => {
-  const allowedTypes = [
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.ms-powerpoint",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  ];
+  const ext = path.extname(file.originalname).toLowerCase();
 
-  if (!allowedTypes.includes(file.mimetype)) {
-    // ✅ KHÔNG truyền Error → tránh lỗi TS
-    cb(null, false);
-  } else {
-    cb(null, true);
+  // ❌ Chặn file nguy hiểm
+  if (BLOCKED_EXTENSIONS.includes(ext)) {
+    return cb(null, false); // ✅ KHÔNG THROW ERROR
   }
-};
 
+  // ✅ Cho image / video
+  if (
+    file.mimetype.startsWith("image/") ||
+    file.mimetype.startsWith("video/")
+  ) {
+    return cb(null, true);
+  }
+
+  // ✅ Cho các file còn lại
+  return cb(null, true);
+};
+// ✅ Export middleware
 export const uploadTaskmanFile = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
 });

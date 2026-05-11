@@ -1,12 +1,12 @@
-import models from "@models";
-import bcrypt from "bcrypt";
-
+import models, { PasswordType, UserStatus } from "@models";
+// ✅ THÊM dòng này vào đầu file
+import * as bcrypt from "bcrypt";
 async function seed() {
   try {
     console.log("🚀 BẮT ĐẦU QUÁ TRÌNH SEED DỮ LIỆU...");
 
     // ==========================================
-    // 1. DỌN DẸP DỮ LIỆU CŨ (Tránh lỗi Foreign Key)
+    // 1. DỌN DẸP DỮ LIỆU CŨ (Thứ tự quan trọng)
     // ==========================================
     console.log("🧹 Đang dọn dẹp dữ liệu cũ (Cascading)...");
     
@@ -43,76 +43,80 @@ async function seed() {
     await models.user.deleteMany({});
 
     // ==========================================
-    // 2. TẠO ROLES & PERMISSIONS
+    // 2. TẠO ROLES & FEATURES
     // ==========================================
-    console.log("🛡️ Đang khởi tạo RBAC (Roles & Permissions)...");
-    
+    console.log("🛡️ Đang khởi tạo RBAC...");
+
     const roleAdmin = await models.role.create({ data: { code: "ADMIN", name: "Quản trị viên", description: "Toàn quyền quản trị hệ thống" } });
     const roleTeacher = await models.role.create({ data: { code: "TEACHER", name: "Giáo viên", description: "Quản lý khóa học, chấm điểm" } });
     const roleTA = await models.role.create({ data: { code: "TA", name: "Trợ giảng", description: "Hỗ trợ học tập, trả lời forum" } });
     const roleStudent = await models.role.create({ data: { code: "STUDENT", name: "Học viên", description: "Người dùng học tập" } });
 
-    // --- 1. Tính năng: Quản lý Khóa học ---
+    // Feature Admin Management (AM)
+    const featAM = await models.feature.create({ data: { code: "AM", name: "Quản trị Hệ thống", type: "SYSTEM" } });
+    const permAMRead = await models.permission.create({ data: { code: "AM::READ", name: "Xem hệ thống", featureId: featAM.id } });
+
+    // Feature User Management (UM)
+    const featUM = await models.feature.create({ data: { code: "UM", name: "Quản lý Người dùng", type: "FEATURE", parentId: featAM.id } });
+    const permsUM = await Promise.all([
+      models.permission.create({ data: { code: "UM::READ", name: "Xem User", featureId: featUM.id } }),
+      models.permission.create({ data: { code: "UM::CREATE", name: "Tạo User", featureId: featUM.id } }),
+      models.permission.create({ data: { code: "UM::UPDATE", name: "Sửa User", featureId: featUM.id } }),
+      models.permission.create({ data: { code: "UM::DELETE", name: "Xóa User", featureId: featUM.id } }),
+    ]);
+
+    // Feature Khóa học
     const featCourse = await models.feature.create({ data: { code: "FEAT_COURSE", name: "Quản lý Khóa học", type: "MENU_GROUP" } });
     const permCourseView = await models.permission.create({ data: { code: "COURSE_VIEW", name: "Xem Khóa học", featureId: featCourse.id } });
     const permCourseEdit = await models.permission.create({ data: { code: "COURSE_EDIT", name: "Thêm/Sửa/Xóa Khóa học", featureId: featCourse.id } });
 
-    // --- 2. BỔ SUNG: Tính năng: Quản trị Hệ thống & Quản lý Người dùng ---
-    /// --- 2. BỔ SUNG: Tính năng: Quản trị Hệ thống & Quản lý Người dùng ---
-    // ĐÃ FIX: Đổi code thành chữ viết tắt "AM" và "UM" cho khớp với Route
-    const featSystem = await models.feature.create({ data: { code: "AM", name: "Quản trị Hệ thống", type: "SYSTEM" } });
-    const featUser = await models.feature.create({ data: { code: "UM", name: "Quản lý Người dùng", type: "FEATURE", parentId: featSystem.id } });
-    
-    // Tạo các hành động (Read, Create, Update, Delete) cho User
-    const permUserRead = await models.permission.create({ data: { code: "READ", name: "Xem danh sách", featureId: featUser.id } });
-    const permUserCreate = await models.permission.create({ data: { code: "CREATE", name: "Thêm mới", featureId: featUser.id } });
-    const permUserUpdate = await models.permission.create({ data: { code: "UPDATE", name: "Cập nhật", featureId: featUser.id } });
-    const permUserDelete = await models.permission.create({ data: { code: "DELETE", name: "Xóa", featureId: featUser.id } });
-
-    // --- 3. Phân quyền (Mapping) ---
+    // Gán quyền cho Role ADMIN
     await models.roleToPermission.createMany({
       data: [
-        // Quyền Khóa học
+        { roleId: roleAdmin.id, permissionId: permAMRead.id },
+        ...permsUM.map(p => ({ roleId: roleAdmin.id, permissionId: p.id })),
         { roleId: roleAdmin.id, permissionId: permCourseView.id },
         { roleId: roleAdmin.id, permissionId: permCourseEdit.id },
+      ]
+    });
+
+    // Mapping các quyền khác
+    await models.roleToPermission.createMany({
+      data: [
         { roleId: roleTeacher.id, permissionId: permCourseView.id },
         { roleId: roleTeacher.id, permissionId: permCourseEdit.id },
         { roleId: roleStudent.id, permissionId: permCourseView.id },
-
-        // Quyền User (Chỉ Admin mới có)
-        { roleId: roleAdmin.id, permissionId: permUserRead.id },
-        { roleId: roleAdmin.id, permissionId: permUserCreate.id },
-        { roleId: roleAdmin.id, permissionId: permUserUpdate.id },
-        { roleId: roleAdmin.id, permissionId: permUserDelete.id },
       ],
     });
 
     // ==========================================
-    // 3. TẠO USERS (ADMIN, TEACHER, STUDENT)
+    // 3. TẠO TÀI KHOẢN
     // ==========================================
-    console.log("👥 Đang tạo tài khoản người dùng...");
+    console.log("👥 Đang tạo tài khoản...");
     const hashedPassword = await bcrypt.hash("123456", 10);
-    const defaultPassword = { create: { password: hashedPassword, type: "PASSWORD" } };
+
     const admin = await models.user.create({
       data: {
-        firstName: "Phong", lastName: "Nguyễn", email: "admin@iviettech.vn", status: "ACTIVE", gender: "MALE",
-        passwords: defaultPassword, roles: { create: { roleId: roleAdmin.id } }, wallet: { create: { balance: 0 } }
+        firstName: "Phong", lastName: "Nguyễn", email: "admin@iviettech.vn", status: UserStatus.ACTIVE, gender: "MALE",
+        passwords: { create: { password: hashedPassword, type: PasswordType.PASSWORD } },
+        roles: { create: { roleId: roleAdmin.id } }, wallet: { create: { balance: 0 } }
       }
     });
     
     const userPhong = await models.user.create({
       data: {
-        firstName: "Phong", lastName: "Nguyễn", email: "phongnvpd10379@gmail.com", status: "ACTIVE", gender: "MALE", phoneNumber: "0909999999",
-        passwords: defaultPassword, roles: { create: { roleId: roleTeacher.id } }, wallet: { create: { balance: 1000000 } }
+        firstName: "Phong", lastName: "Nguyễn", email: "phongnvpd10379@gmail.com", status: UserStatus.ACTIVE, gender: "MALE", phoneNumber: "0909999999",
+        passwords: { create: { password: hashedPassword, type: PasswordType.PASSWORD } },
+        roles: { create: { roleId: roleTeacher.id } }, wallet: { create: { balance: 1000000 } }
       }
     });
 
     const teachers = await Promise.all([
-      models.user.create({ data: { firstName: "Tuấn", lastName: "Lê", email: "tuan.le@iviettech.vn", status: "ACTIVE", gender: "MALE", passwords: defaultPassword, roles: { create: { roleId: roleTeacher.id } }, wallet: { create: { balance: 15000000 } } } }),
-      models.user.create({ data: { firstName: "Hương", lastName: "Trần", email: "huong.tran@iviettech.vn", status: "ACTIVE", gender: "FEMALE", passwords: defaultPassword, roles: { create: { roleId: roleTeacher.id } }, wallet: { create: { balance: 12000000 } } } }),
+      models.user.create({ data: { firstName: "Tuấn", lastName: "Lê", email: "tuan.le@iviettech.vn", status: UserStatus.ACTIVE, gender: "MALE", passwords: { create: { password: hashedPassword, type: PasswordType.PASSWORD } }, roles: { create: { roleId: roleTeacher.id } }, wallet: { create: { balance: 15000000 } } } }),
+      models.user.create({ data: { firstName: "Hương", lastName: "Trần", email: "huong.tran@iviettech.vn", status: UserStatus.ACTIVE, gender: "FEMALE", passwords: { create: { password: hashedPassword, type: PasswordType.PASSWORD } }, roles: { create: { roleId: roleTeacher.id } }, wallet: { create: { balance: 12000000 } } } }),
     ]);
 
-    const ta = await models.user.create({ data: { firstName: "Bảo", lastName: "Phạm", email: "bao.pham@iviettech.vn", status: "ACTIVE", gender: "MALE", passwords: defaultPassword, roles: { create: { roleId: roleTA.id } } } });
+    const ta = await models.user.create({ data: { firstName: "Bảo", lastName: "Phạm", email: "bao.pham@iviettech.vn", status: UserStatus.ACTIVE, gender: "MALE", passwords: { create: { password: hashedPassword, type: PasswordType.PASSWORD } }, roles: { create: { roleId: roleTA.id } } } });
 
     const studentNames = [
       { f: "An", l: "Nguyễn" }, { f: "Bình", l: "Trần" }, { f: "Chi", l: "Lê" }, { f: "Duy", l: "Phạm" }, 
@@ -123,8 +127,8 @@ async function seed() {
     const students = await Promise.all(studentNames.map((n, i) => 
       models.user.create({
         data: {
-          firstName: n.f, lastName: n.l, email: `student${i+1}@gmail.com`, status: "ACTIVE", phoneNumber: `09000000${i.toString().padStart(2, '0')}`,
-          passwords: defaultPassword, roles: { create: { roleId: roleStudent.id } }, wallet: { create: { balance: 5000000 } }
+          firstName: n.f, lastName: n.l, email: `student${i+1}@gmail.com`, status: UserStatus.ACTIVE, phoneNumber: `09000000${i.toString().padStart(2, '0')}`,
+          passwords: { create: { password: hashedPassword, type: PasswordType.PASSWORD } }, roles: { create: { roleId: roleStudent.id } }, wallet: { create: { balance: 5000000 } }
         }
       })
     ));
@@ -132,16 +136,17 @@ async function seed() {
     // ==========================================
     // 4. TẠO KHÓA HỌC & MÔN HỌC (Đã sửa logic gán giáo viên)
     // ==========================================
-    console.log("📚 Đang tạo Khóa học và phân công giảng dạy...");
+    console.log("📚 Đang tạo Khóa học...");
 
     const courseWeb = await models.course.create({
       data: {
         title: "Fullstack Web Development (React & Node.js)", 
         description: "Trở thành lập trình viên Fullstack thực chiến với ReactJS, Next.js, Node.js, Express và Prisma ORM.",
-        price: 4500000, 
-        status: "PUBLISHED", 
-        adminId: admin.id, 
-        thumbnailUrl: "https://placehold.co/800x400/2563eb/white?text=Fullstack+Web"
+        price: 4500000,
+        status: "PUBLISHED",
+        adminId: admin.id,
+        thumbnailUrl: "https://placehold.co/800x400/2563eb/white?text=Fullstack+Web",
+        // ✅ ĐÃ XÓA KHỐI courseTeachers Ở ĐÂY VÌ TRONG SQL KHÔNG CÓ BẢNG NÀY
       }
     });
 
@@ -149,24 +154,25 @@ async function seed() {
       data: {
         title: "Software Testing & QA (ISTQB Foundation)", 
         description: "Khóa học Tester toàn diện từ Manual đến Automation Testing (Selenium/Cypress).",
-        price: 3200000, 
-        status: "PUBLISHED", 
-        adminId: admin.id, 
-        thumbnailUrl: "https://placehold.co/800x400/16a34a/white?text=Software+Testing"
+        price: 3200000,
+        status: "PUBLISHED",
+        adminId: admin.id,
+        thumbnailUrl: "https://placehold.co/800x400/16a34a/white?text=Software+Testing",
+        // ✅ ĐÃ XÓA KHỐI courseTeachers Ở ĐÂY
       }
     });
 
-    // Môn học - Gán trực tiếp teacherId vào đây
-    const subReact = await models.subject.create({ 
-      data: { courseId: courseWeb.id, teacherId: teachers[0].id, name: "Frontend với ReactJS & TypeScript", sortOrder: 1 } 
+    // Việc gán Giáo Viên được lưu ở cấp độ Subject (Môn học) theo đúng Schema SQL
+    const subReact = await models.subject.create({
+      data: { courseId: courseWeb.id, teacherId: teachers[0].id, name: "Frontend với ReactJS & TypeScript", sortOrder: 1 }
     });
-    
-    const subNode = await models.subject.create({ 
-      data: { courseId: courseWeb.id, teacherId: ta.id, name: "Backend với Node.js & Express", sortOrder: 2 } // Giao môn Node cho bạn TA hoặc một giáo viên khác
+
+    const subNode = await models.subject.create({
+      data: { courseId: courseWeb.id, teacherId: ta.id, name: "Backend với Node.js & Express", sortOrder: 2 }
     });
-    
-    const subISTQB = await models.subject.create({ 
-      data: { courseId: courseQA.id, teacherId: teachers[1].id, name: "Nền tảng kiểm thử (ISTQB)", sortOrder: 1 } 
+
+    const subISTQB = await models.subject.create({
+      data: { courseId: courseQA.id, teacherId: teachers[1].id, name: "Nền tảng kiểm thử (ISTQB)", sortOrder: 1 }
     });
 
     // ==========================================
@@ -246,7 +252,6 @@ async function seed() {
 
     const ansQ1 = await models.questionAnswer.findFirst({ where: { questionId: q1.id, isCorrect: true } });
     const ansQ2 = await models.questionAnswer.findFirst({ where: { questionId: q2.id, isCorrect: false } });
-
     await models.submission.create({
       data: {
         testId: testReact.id, studentId: students[0].id, classGroupId: classFS1.id, score: 5, status: "GRADED", finalScoreStatus: "AUTO_GRADED",
@@ -296,8 +301,7 @@ async function seed() {
         { courseId: courseWeb.id, studentId: students[2].id, rating: 4, content: "Nội dung hay nhưng bài tập hơi khoai." }
       ]
     });
-
-    console.log("🎉 SEED DỮ LIỆU THÀNH CÔNG! HỆ THỐNG ĐÃ SẴN SÀNG ĐỂ DEMO.");
+    console.log("🎉 SEED DỮ LIỆU HOÀN TẤT! HỆ THỐNG ĐÃ SẴN SÀNG ĐỂ DEMO.");
 
   } catch (error) {
     console.error("❌ Lỗi khi seed dữ liệu:", error);

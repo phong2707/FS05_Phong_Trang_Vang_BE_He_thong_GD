@@ -1,5 +1,5 @@
 import env from "@configs/env";
-import { HomeController } from "@controllers";
+import { AdminUserController, HomeController } from "@controllers";
 import {
   CurrentUserMiddleware,
   Permission,
@@ -38,17 +38,22 @@ RailsRoute.actionPermissionMap = {
 
 export class Route extends RailsRoute {
   public draw() {
+
+
     this.path(action(CurrentUserMiddleware));
 
     if (env.nodeEnv === "development") this.path("/dev", DevRoute.draw());
 
-    // Đưa Auth vào trong cụm API
     this.path("/api", ApiRoute.draw());
     this.path("/api/auth", AuthRoute.draw());
     this.path("/api/admin", AdminRoute.draw());
     this.path("/me", ProfileRoute.draw());
+    this.path("/users/stats", action(AdminUserController, "stats"));
     this.path("/users", UserRoute.draw());
+
+// Home
+this.get("/", action(HomeController, "index"));
     
-    this.get("/", action(HomeController, "index"));
+   
   }
 }

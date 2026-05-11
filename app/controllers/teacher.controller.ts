@@ -1,38 +1,23 @@
-import models from "@models";
 import { ApplicationController } from ".";
+import { getTeacherSubjects } from "@services/subject.service";
 
 export class TeacherController extends ApplicationController {
   /**
-   * GET /teacher/courses
+   * GET /teachers/subjects
    */
-  async getAssignedCourses() {
-    const teacherId = this.req.query.teacherId as string;
-
-    if (!teacherId) {
-      return this.res.status(400).json({
+  async getAssignedSubjects() {
+    if (!this.currentUser) {
+      return this.res.status(401).json({
         success: false,
-        message: "Missing teacherId",
+        message: "Unauthorized",
       });
     }
 
-    const courses = await models.course.findMany({
-      where: {
-        teachers: {
-          some: { teacherId },
-        },
-      },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        price: true,
-        createdAt: true,
-      },
-    });
+    const subjects = await getTeacherSubjects(this.currentUser.id);
 
     return this.res.json({
       success: true,
-      data: courses,
+      data: subjects,
     });
   }
 }

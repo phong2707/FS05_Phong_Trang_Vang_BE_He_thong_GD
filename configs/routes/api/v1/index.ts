@@ -14,6 +14,11 @@ import { ClassGroupRoute } from "./classGroup.route";
 import {TaskmanRoute} from "./taskman.route";
 
 
+
+import { TeacherRoute } from "./teacher.route";
+import { SubjectRoute } from "./subject.route";
+
+
 import { ClassGroupRoute } from "./classGroup.route";
 
 import {TaskmanRoute} from "./taskman.route";
@@ -37,6 +42,9 @@ this.path(action(ValidateUserLoginMiddleware));
 
 
     this.path(action(ValidateUserLoginMiddleware));
+
+this.path("/teachers", TeacherRoute.draw());
+this.path("/subjects", SubjectRoute.draw());
 
     this.path("/class-groups", ClassGroupRoute.draw());
 

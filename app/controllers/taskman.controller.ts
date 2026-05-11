@@ -56,39 +56,44 @@ export class TaskmanController extends ApplicationController {
   async createFile() {
   if (!this.requireLogin()) return;
 
-  // ✅ GỌI MULTER THỦ CÔNG (KEY POINT)
-  await new Promise<void>((resolve, reject) => {
-    uploadTaskmanFile.single("file")(this.req, this.res, (err) => {
-      if (err) return reject(err);
-      resolve();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      uploadTaskmanFile.single("file")(this.req, this.res, (err) => {
+        if (err) return reject(err);
+        resolve();
+      });
     });
-  });
 
-  const { subjectId } = this.req.params;
-  const { title } = this.req.body;
-  const file = this.req.file;
+    const { subjectId } = this.req.params;
+    const { title } = this.req.body;
+    const file = this.req.file;
 
-  if (!file) {
+    if (!file) {
+      return this.res.status(400).json({
+        success: false,
+        error: "Loại file không được phép hoặc file không hợp lệ",
+      });
+    }
+
+    const fileUrl = `/uploads/${file.filename}`;
+
+    // ✅ CHỈ GỬI THÔNG TIN FILE
+    const data = await this.service.createFile(
+      subjectId,
+      title,
+      fileUrl,
+      file.mimetype,
+      file.originalname
+    );
+
+    return this.res.json({ success: true, data });
+
+  } catch (err: any) {
     return this.res.status(400).json({
       success: false,
-      error: "File là bắt buộc",
+      error: err.message || "Upload file thất bại",
     });
   }
-
-  const fileUrl = `/uploads/${file.filename}`;
-  const fileType = file.mimetype;
-
-  const data = await this.service.createFile(
-    subjectId,
-    title,
-    fileUrl,
-    fileType
-  );
-
-  return this.res.json({
-    success: true,
-    data,
-  });
 }
 
 }

@@ -57,9 +57,14 @@ async function seed() {
     const roleStudent = await models.role.create({ data: { code: "STUDENT", name: "Học viên", description: "Người dùng học tập" } });
 
     // Feature Admin Management
+    // Feature Admin Management
     const featAM = await models.feature.create({ data: { code: "AM", name: "Quản trị Hệ thống", type: "SYSTEM" } });
-    const permAMRead = await models.permission.create({ data: { code: "AM::READ", name: "Xem hệ thống", featureId: featAM.id } });
-
+    const permsAM = await Promise.all([
+      models.permission.create({ data: { code: "AM::READ", name: "Xem hệ thống", featureId: featAM.id } }),
+      models.permission.create({ data: { code: "AM::CREATE", name: "Tạo dữ liệu hệ thống", featureId: featAM.id } }),
+      models.permission.create({ data: { code: "AM::UPDATE", name: "Cập nhật hệ thống", featureId: featAM.id } }),
+      models.permission.create({ data: { code: "AM::DELETE", name: "Xóa dữ liệu hệ thống", featureId: featAM.id } }),
+    ]);
     // Feature User Management
     const featUM = await models.feature.create({ data: { code: "UM", name: "Quản lý Người dùng", type: "FEATURE", parentId: featAM.id } });
     const permsUM = await Promise.all([
@@ -76,8 +81,13 @@ async function seed() {
 
     await models.roleToPermission.createMany({
       data: [
-        { roleId: roleAdmin.id, permissionId: permAMRead.id },
+        // Map TOÀN BỘ quyền AM (đã bao gồm AM::CREATE) cho Admin
+        ...permsAM.map(p => ({ roleId: roleAdmin.id, permissionId: p.id })),
+        
+        // Map quyền UM cho Admin
         ...permsUM.map(p => ({ roleId: roleAdmin.id, permissionId: p.id })),
+        
+        // Map quyền Course cho các role
         { roleId: roleAdmin.id, permissionId: permCourseView.id },
         { roleId: roleAdmin.id, permissionId: permCourseEdit.id },
         { roleId: roleTeacher.id, permissionId: permCourseView.id },

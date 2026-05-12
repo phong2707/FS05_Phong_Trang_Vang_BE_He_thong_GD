@@ -31,8 +31,8 @@ Table users {
   requestCreator requests [not null]
   requestApprover requests [not null]
   managedCourses courses [not null]
-  subjects subjects [not null]
   classEnrollments class_group_users [not null]
+  teachingSubjects subject_teachers [not null]
   questions questions [not null]
   submissions submissions [not null]
   gradedSubmissions submissions [not null]
@@ -167,6 +167,19 @@ Table requests {
   approver users
 }
 
+Table subject_teachers {
+  subjectId String [not null]
+  teacherId String [not null]
+  type String [not null, default: 'MAIN']
+  createdAt DateTime [default: `now()`, not null]
+  subject subjects [not null]
+  teacher users [not null]
+
+  indexes {
+    (subjectId, teacherId) [pk]
+  }
+}
+
 Table courses {
   id String [pk]
   title String [not null]
@@ -186,13 +199,12 @@ Table courses {
 Table subjects {
   id String [pk]
   courseId String [not null]
-  teacherId String [not null]
   name String [not null]
   description String
   sortOrder Int [not null, default: 0]
   createdAt DateTime [default: `now()`, not null]
   course courses [not null]
-  teacher users [not null]
+  teachers subject_teachers [not null]
   classGroups class_groups [not null]
   taskmen taskmen [not null]
   videos videos [not null]
@@ -491,11 +503,13 @@ Ref: requests.createdById > users.id
 
 Ref: requests.approvedBy > users.id
 
+Ref: subject_teachers.subjectId > subjects.id [delete: Cascade]
+
+Ref: subject_teachers.teacherId > users.id [delete: Cascade]
+
 Ref: courses.adminId > users.id
 
 Ref: subjects.courseId > courses.id [delete: Cascade]
-
-Ref: subjects.teacherId > users.id
 
 Ref: class_groups.subjectId > subjects.id [delete: Cascade]
 

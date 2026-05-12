@@ -35,6 +35,70 @@ export class AuthController extends ApplicationController {
     );
   }
 
+  // 🟢 HÀM XỬ LÝ ĐĂNG NHẬP GOOGLE BỊ TEAM QUÊN PUSH
+  async googleVerify() {
+    try {
+      const { idToken } = this.req.body;
+      if (!idToken) {
+        return this.res.status(400).json({ success: false, message: "Thiếu mã xác thực Google (idToken)" });
+      }
+
+      // 1. Gửi idToken lên Google để xác thực và lấy thông tin
+      const { data: googleUser } = await axios.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+
+      if (!googleUser || !googleUser.email) {
+        return this.res.status(401).json({ success: false, message: "Token Google không hợp lệ" });
+      }
+
+      // 2. Tìm User trong Database
+      const user = await models.user.findFirst({
+        where: { email: googleUser.email },
+        include: {
+          roles: { include: { role: true } }
+        }
+      });
+
+      if (!user) {
+        return this.res.status(404).json({ 
+          success: false, 
+          message: "Email này chưa được đăng ký trong hệ thống." 
+        });
+      }
+
+      if (user.deleted) return this.res.status(410).json({ success: false, message: "Tài khoản đã bị xóa." });
+      if (user.status === UserStatus.PENDING) return this.res.status(403).json({ success: false, message: "Tài khoản đang chờ duyệt." });
+      if (user.status === UserStatus.INACTIVE) return this.res.status(403).json({ success: false, message: "Tài khoản đã bị khóa." });
+
+      // 3. Tạo JWT Token
+      const token = generateToken({ id: user.id, email: user.email });
+
+      // Cập nhật last_login_at
+      await models.$executeRaw`UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ${user.id}`;
+
+      // 4. Trả về đúng định dạng mà Frontend mong đợi
+      return this.res.json({
+        success: true,
+        message: "Đăng nhập Google thành công",
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          status: user.status,
+          roles: user.roles.map((ur) => ({
+            id: ur.role.id,
+            code: ur.role.code,
+            name: ur.role.name,
+          })),
+        },
+      });
+
+    } catch (error: any) {
+      console.error("Lỗi Google Verify:", error.message);
+      return this.res.status(500).json({ success: false, message: "Xác thực Google thất bại." });
+    }
+  }
   async loginWithGoogleRedirect() {
     const { code } = this.req.query;
     const {

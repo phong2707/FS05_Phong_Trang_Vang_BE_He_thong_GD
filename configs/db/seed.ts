@@ -1,6 +1,6 @@
 import models, { PasswordType, UserStatus } from "@models";
-// ✅ THÊM dòng này vào đầu file
 import * as bcrypt from "bcrypt";
+
 async function seed() {
   try {
     console.log("🚀 BẮT ĐẦU QUÁ TRÌNH SEED DỮ LIỆU...");
@@ -25,10 +25,14 @@ async function seed() {
     await models.schedule.deleteMany({});
     await models.classGroupUser.deleteMany({});
     await models.classGroup.deleteMany({});
+    
+    // ✅ THÊM: Xóa dữ liệu bảng trung gian trước khi xóa môn học
+    await models.subjectTeacher.deleteMany({}); 
     await models.subject.deleteMany({});
+    
     await models.courseReview.deleteMany({});
     await models.transaction.deleteMany({});
-    await models.course.deleteMany({}); // Đã xóa model.courseTeacher
+    await models.course.deleteMany({}); 
     await models.message.deleteMany({});
     await models.notification.deleteMany({});
     await models.request.deleteMany({});
@@ -52,11 +56,11 @@ async function seed() {
     const roleTA = await models.role.create({ data: { code: "TA", name: "Trợ giảng", description: "Hỗ trợ học tập, trả lời forum" } });
     const roleStudent = await models.role.create({ data: { code: "STUDENT", name: "Học viên", description: "Người dùng học tập" } });
 
-    // Feature Admin Management (AM)
+    // Feature Admin Management
     const featAM = await models.feature.create({ data: { code: "AM", name: "Quản trị Hệ thống", type: "SYSTEM" } });
     const permAMRead = await models.permission.create({ data: { code: "AM::READ", name: "Xem hệ thống", featureId: featAM.id } });
 
-    // Feature User Management (UM)
+    // Feature User Management
     const featUM = await models.feature.create({ data: { code: "UM", name: "Quản lý Người dùng", type: "FEATURE", parentId: featAM.id } });
     const permsUM = await Promise.all([
       models.permission.create({ data: { code: "UM::READ", name: "Xem User", featureId: featUM.id } }),
@@ -70,23 +74,16 @@ async function seed() {
     const permCourseView = await models.permission.create({ data: { code: "COURSE_VIEW", name: "Xem Khóa học", featureId: featCourse.id } });
     const permCourseEdit = await models.permission.create({ data: { code: "COURSE_EDIT", name: "Thêm/Sửa/Xóa Khóa học", featureId: featCourse.id } });
 
-    // Gán quyền cho Role ADMIN
     await models.roleToPermission.createMany({
       data: [
         { roleId: roleAdmin.id, permissionId: permAMRead.id },
         ...permsUM.map(p => ({ roleId: roleAdmin.id, permissionId: p.id })),
         { roleId: roleAdmin.id, permissionId: permCourseView.id },
         { roleId: roleAdmin.id, permissionId: permCourseEdit.id },
-      ]
-    });
-
-    // Mapping các quyền khác
-    await models.roleToPermission.createMany({
-      data: [
         { roleId: roleTeacher.id, permissionId: permCourseView.id },
         { roleId: roleTeacher.id, permissionId: permCourseEdit.id },
         { roleId: roleStudent.id, permissionId: permCourseView.id },
-      ],
+      ]
     });
 
     // ==========================================
@@ -118,6 +115,16 @@ async function seed() {
 
     const ta = await models.user.create({ data: { firstName: "Bảo", lastName: "Phạm", email: "bao.pham@iviettech.vn", status: UserStatus.ACTIVE, gender: "MALE", passwords: { create: { password: hashedPassword, type: PasswordType.PASSWORD } }, roles: { create: { roleId: roleTA.id } } } });
 
+    // ✅ THÊM TÀI KHOẢN THEO YÊU CẦU:
+    const specificStudent = await models.user.create({
+      data: {
+        firstName: "Cyleish", lastName: "Student", email: "cyleish2108@gmail.com", status: UserStatus.ACTIVE, phoneNumber: "0988888888",
+        passwords: { create: { password: hashedPassword, type: PasswordType.PASSWORD } }, 
+        roles: { create: { roleId: roleStudent.id } }, 
+        wallet: { create: { balance: 5000000 } }
+      }
+    });
+
     const studentNames = [
       { f: "An", l: "Nguyễn" }, { f: "Bình", l: "Trần" }, { f: "Chi", l: "Lê" }, { f: "Duy", l: "Phạm" }, 
       { f: "Hải", l: "Hoàng" }, { f: "Linh", l: "Vũ" }, { f: "Mai", l: "Đặng" }, { f: "Nam", l: "Bùi" },
@@ -134,7 +141,7 @@ async function seed() {
     ));
 
     // ==========================================
-    // 4. TẠO KHÓA HỌC & MÔN HỌC (Đã sửa logic gán giáo viên)
+    // 4. TẠO KHÓA HỌC & MÔN HỌC (Đã sửa N-N)
     // ==========================================
     console.log("📚 Đang tạo Khóa học...");
 
@@ -142,11 +149,8 @@ async function seed() {
       data: {
         title: "Fullstack Web Development (React & Node.js)", 
         description: "Trở thành lập trình viên Fullstack thực chiến với ReactJS, Next.js, Node.js, Express và Prisma ORM.",
-        price: 4500000,
-        status: "PUBLISHED",
-        adminId: admin.id,
+        price: 4500000, status: "PUBLISHED", adminId: admin.id,
         thumbnailUrl: "https://placehold.co/800x400/2563eb/white?text=Fullstack+Web",
-        // ✅ ĐÃ XÓA KHỐI courseTeachers Ở ĐÂY VÌ TRONG SQL KHÔNG CÓ BẢNG NÀY
       }
     });
 
@@ -154,25 +158,31 @@ async function seed() {
       data: {
         title: "Software Testing & QA (ISTQB Foundation)", 
         description: "Khóa học Tester toàn diện từ Manual đến Automation Testing (Selenium/Cypress).",
-        price: 3200000,
-        status: "PUBLISHED",
-        adminId: admin.id,
+        price: 3200000, status: "PUBLISHED", adminId: admin.id,
         thumbnailUrl: "https://placehold.co/800x400/16a34a/white?text=Software+Testing",
-        // ✅ ĐÃ XÓA KHỐI courseTeachers Ở ĐÂY
       }
     });
 
-    // Việc gán Giáo Viên được lưu ở cấp độ Subject (Môn học) theo đúng Schema SQL
+    // ✅ SỬA LOGIC GÁN GIÁO VIÊN QUA BẢNG TRUNG GIAN
     const subReact = await models.subject.create({
-      data: { courseId: courseWeb.id, teacherId: teachers[0].id, name: "Frontend với ReactJS & TypeScript", sortOrder: 1 }
+      data: { 
+        courseId: courseWeb.id, name: "Frontend với ReactJS & TypeScript", sortOrder: 1,
+        teachers: { create: { teacherId: teachers[0].id, type: "MAIN" } }
+      }
     });
 
     const subNode = await models.subject.create({
-      data: { courseId: courseWeb.id, teacherId: ta.id, name: "Backend với Node.js & Express", sortOrder: 2 }
+      data: { 
+        courseId: courseWeb.id, name: "Backend với Node.js & Express", sortOrder: 2,
+        teachers: { create: { teacherId: ta.id, type: "ASSISTANT" } }
+      }
     });
 
     const subISTQB = await models.subject.create({
-      data: { courseId: courseQA.id, teacherId: teachers[1].id, name: "Nền tảng kiểm thử (ISTQB)", sortOrder: 1 }
+      data: { 
+        courseId: courseQA.id, name: "Nền tảng kiểm thử (ISTQB)", sortOrder: 1,
+        teachers: { create: { teacherId: teachers[1].id, type: "MAIN" } }
+      }
     });
 
     // ==========================================
@@ -182,11 +192,18 @@ async function seed() {
     const classFS2 = await models.classGroup.create({ data: { subjectId: subNode.id, name: "FS-K40-Online" } });
     const classQA1 = await models.classGroup.create({ data: { subjectId: subISTQB.id, name: "QA-K22-Offline" } });
 
-    await Promise.all(students.slice(0, 8).map((s: { id: any; }) => models.classGroupUser.createMany({ data: [
+    // Enroll students bình thường
+    await Promise.all(students.slice(0, 8).map((s: { id: string; }) => models.classGroupUser.createMany({ data: [
       { userId: s.id, classGroupId: classFS1.id, role: "STUDENT" },
       { userId: s.id, classGroupId: classFS2.id, role: "STUDENT" }
     ]})));
-    await Promise.all(students.slice(8, 12).map((s: { id: any; }) => models.classGroupUser.create({ data: { userId: s.id, classGroupId: classQA1.id, role: "STUDENT" } })));
+    await Promise.all(students.slice(8, 12).map((s: { id: string; }) => models.classGroupUser.create({ data: { userId: s.id, classGroupId: classQA1.id, role: "STUDENT" } })));
+
+    // ✅ ENROLL cho bạn cyleish2108@gmail.com vào khóa Fullstack để có dữ liệu test
+    await models.classGroupUser.createMany({ data: [
+      { userId: specificStudent.id, classGroupId: classFS1.id, role: "STUDENT" },
+      { userId: specificStudent.id, classGroupId: classFS2.id, role: "STUDENT" }
+    ]});
 
     // ==========================================
     // 6. NỘI DUNG BÀI GIẢNG (VIDEOS & TASKS)
@@ -246,7 +263,7 @@ async function seed() {
       data: [
         { studentId: students[0].id, videoId: v1.id, status: "COMPLETED", completedAt: new Date() },
         { studentId: students[0].id, videoId: v2.id, status: "COMPLETED", completedAt: new Date() },
-        { studentId: students[1].id, videoId: v1.id, status: "COMPLETED", completedAt: new Date() }
+        { studentId: specificStudent.id, videoId: v1.id, status: "COMPLETED", completedAt: new Date() } // Thêm progress test cho tài khoản mới
       ]
     });
 
@@ -262,12 +279,16 @@ async function seed() {
       }
     });
 
-    await Promise.all(students.slice(0, 5).map((s: { id: any; }, i: any) => 
+    // Payment transactions
+    await Promise.all(students.slice(0, 5).map((s: { id: string; }, i: number) => 
       models.transaction.create({ data: { studentId: s.id, courseId: courseWeb.id, amount: 4500000, paymentMethod: "VNPAY", status: "SUCCESS", referenceCode: `VNPAY_WEB_${i}` } })
     ));
-    await Promise.all(students.slice(8, 10).map((s: { id: any; }, i: any) => 
+    await Promise.all(students.slice(8, 10).map((s: { id: string; }, i: number) => 
       models.transaction.create({ data: { studentId: s.id, courseId: courseQA.id, amount: 3200000, paymentMethod: "MOMO", status: "SUCCESS", referenceCode: `MOMO_QA_${i}` } })
     ));
+    
+    // Giao dịch cho cyleish2108
+    await models.transaction.create({ data: { studentId: specificStudent.id, courseId: courseWeb.id, amount: 4500000, paymentMethod: "VNPAY", status: "SUCCESS", referenceCode: `VNPAY_WEB_CYLEISH` } });
 
     // ==========================================
     // 9. FORUM, CHAT & NOTIFICATIONS
@@ -285,22 +306,22 @@ async function seed() {
     const post1 = await models.forumPost.create({ data: { forumId: forum.id, userId: students[0].id, content: "Thầy ơi cho em hỏi làm sao để fix lỗi Hydration Error trong NextJS ạ?" } });
     await models.forumPost.create({ data: { forumId: forum.id, userId: teachers[0].id, parentId: post1.id, content: "Chào em, lỗi này thường do cấu trúc HTML render ở Server khác với Client. Em check lại các thẻ div lồng trong thẻ p nhé." } });
 
-    await models.message.create({ data: { senderId: students[1].id, receiverId: ta.id, content: "Anh Bảo ơi, check giúp em đoạn code useEffect này sao nó bị loop vô hạn với ạ.", isRead: true } });
-    await models.message.create({ data: { senderId: ta.id, receiverId: students[1].id, content: "Đợi xíu anh vào repo xem nhé.", isRead: false } });
-
+    await models.message.create({ data: { senderId: specificStudent.id, receiverId: ta.id, content: "Anh Bảo ơi, cho em xin lại tài liệu buổi 1 nhé.", isRead: false } });
+    
     await models.notification.createMany({
       data: [
         { userId: students[0].id, content: "Bài kiểm tra Quiz 1 của bạn đã có điểm: 5/10", isRead: false },
-        { userId: students[1].id, content: "Lớp FS-K40-Online sắp bắt đầu trong 30 phút nữa.", isRead: true }
+        { userId: specificStudent.id, content: "Chào mừng bạn đến với khóa học Fullstack Web Development!", isRead: false }
       ]
     });
 
     await models.courseReview.createMany({
       data: [
         { courseId: courseWeb.id, studentId: students[0].id, rating: 5, content: "Khóa học cực kỳ thực chiến, giáo viên nhiệt tình!" },
-        { courseId: courseWeb.id, studentId: students[2].id, rating: 4, content: "Nội dung hay nhưng bài tập hơi khoai." }
+        { courseId: courseWeb.id, studentId: specificStudent.id, rating: 5, content: "Rất phù hợp cho người mới bắt đầu!" }
       ]
     });
+    
     console.log("🎉 SEED DỮ LIỆU HOÀN TẤT! HỆ THỐNG ĐÃ SẴN SÀNG ĐỂ DEMO.");
 
   } catch (error) {

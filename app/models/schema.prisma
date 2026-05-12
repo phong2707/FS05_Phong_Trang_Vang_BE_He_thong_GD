@@ -53,8 +53,8 @@ model User {
 
   // --- LMS Relations ---
   managedCourses    Course[]           @relation("AdminManager")
-  subjects          Subject[]          @relation("TeacherSubjects") // Gán giáo viên cho môn học
   classEnrollments  ClassGroupUser[]
+  teachingSubjects SubjectTeacher[]
   questions         Question[]
   submissions       Submission[]
   gradedSubmissions Submission[]       @relation("Grader")
@@ -211,6 +211,19 @@ model Request {
   @@map("requests")
 }
 
+model SubjectTeacher {
+  subjectId String @map("subject_id")
+  teacherId String @map("teacher_id")
+  type      String @default("MAIN") @map("type") 
+  createdAt DateTime @default(now()) @map("created_at")
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher User    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@id([subjectId, teacherId])
+  @@map("subject_teachers")
+}
+
 // ==========================================
 // 2. COURSE & CONTENT MANAGEMENT
 // ==========================================
@@ -237,14 +250,13 @@ model Course {
 model Subject {
   id          String   @id @default(uuid())
   courseId    String   @map("course_id")
-  teacherId   String   @map("teacher_id") // ID của giáo viên phụ trách môn này
   name        String
   description String?
   sortOrder   Int      @default(0) @map("sort_order")
   createdAt   DateTime @default(now()) @map("created_at")
 
   course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  teacher     User         @relation("TeacherSubjects", fields: [teacherId], references: [id]) // Liên kết tới User
+  teachers    SubjectTeacher[]
   classGroups ClassGroup[]
   taskmen     Taskman[]
   videos      Video[]

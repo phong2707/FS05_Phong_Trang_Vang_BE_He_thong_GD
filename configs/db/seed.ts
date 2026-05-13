@@ -128,7 +128,7 @@ async function seed() {
     // ✅ THÊM TÀI KHOẢN THEO YÊU CẦU:
     const specificStudent = await models.user.create({
       data: {
-        firstName: "Cyleish", lastName: "Student", email: "cyleish2108@gmail.com", status: UserStatus.ACTIVE, phoneNumber: "0988888888",
+        firstName: "Cyleish", lastName: "Student", email: "phongnguyenatx2707@gmail.com", status: UserStatus.ACTIVE, phoneNumber: "0988888888",
         passwords: { create: { password: hashedPassword, type: PasswordType.PASSWORD } }, 
         roles: { create: { roleId: roleStudent.id } }, 
         wallet: { create: { balance: 5000000 } }

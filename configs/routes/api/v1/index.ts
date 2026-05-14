@@ -5,7 +5,7 @@ import { action, RailsRoute } from "ts-rails";
 import { ApiV1AdminRoute } from "./admin";
 import { AuthRoute } from "./auth";
 import { ApiV1DevRoute } from "./dev";
-import { TeacherRoute } from "../../teacher.route";
+import { TeacherRoute } from "./teacher.route";
 import { ClassGroupRoute } from "./classGroup.route";
 
 

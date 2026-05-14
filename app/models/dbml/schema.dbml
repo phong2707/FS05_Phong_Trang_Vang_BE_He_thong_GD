@@ -36,6 +36,7 @@ Table users {
   questions questions [not null]
   submissions submissions [not null]
   gradedSubmissions submissions [not null]
+  attendances attendances [not null]
   forumPosts forum_posts [not null]
   sentMessages messages [not null]
   receivedMessages messages [not null]
@@ -186,6 +187,16 @@ Table courses {
   description String
   thumbnailUrl String
   price Float [not null]
+  startDate DateTime
+  endDate DateTime
+  durationValue Int
+  durationUnit String [default: 'MONTH']
+  daysOfWeek String
+  level String [default: 'BEGINNER']
+  maxStudents Int
+  language String [default: 'VI']
+  isFeatured Boolean [not null, default: false]
+  discountPrice Float
   status String [not null, default: 'DRAFT']
   adminId String [not null]
   createdAt DateTime [default: `now()`, not null]
@@ -206,17 +217,31 @@ Table subjects {
   course courses [not null]
   teachers subject_teachers [not null]
   classGroups class_groups [not null]
-  taskmen taskmen [not null]
-  videos videos [not null]
+  chapters chapters [not null]
   questions questions [not null]
-  tests tests [not null]
   forums forums [not null]
+}
+
+Table chapters {
+  id String [pk]
+  subjectId String [not null]
+  title String [not null]
+  sortOrder Int [not null, default: 0]
+  createdAt DateTime [default: `now()`, not null]
+  subject subjects [not null]
+  videos videos [not null]
+  taskmen taskmen [not null]
+  tests tests [not null]
 }
 
 Table class_groups {
   id String [pk]
   subjectId String [not null]
   name String [not null]
+  startDate DateTime
+  endDate DateTime
+  maxStudents Int [default: 30]
+  roomLink String
   status String [not null, default: 'ACTIVE']
   createdAt DateTime [default: `now()`, not null]
   subject subjects [not null]
@@ -240,27 +265,27 @@ Table class_group_users {
 
 Table taskmen {
   id String [pk]
-  subjectId String [not null]
+  chapterId String [not null]
   title String [not null]
   fileType String
   url String [not null]
   sortOrder Int [not null, default: 0]
   isVisible Boolean [not null, default: true]
   createdAt DateTime [default: `now()`, not null]
-  subject subjects [not null]
+  chapter chapters [not null]
   learningProgress learning_progress [not null]
 }
 
 Table videos {
   id String [pk]
-  subjectId String [not null]
+  chapterId String [not null]
   title String [not null]
   videoUrl String [not null]
   durationSeconds Int [not null]
   provider String [not null]
   sortOrder Int [not null, default: 0]
   createdAt DateTime [default: `now()`, not null]
-  subject subjects [not null]
+  chapter chapters [not null]
   learningProgress learning_progress [not null]
 }
 
@@ -300,7 +325,7 @@ Table question_answers {
 
 Table tests {
   id String [pk]
-  subjectId String [not null]
+  chapterId String [not null]
   title String [not null]
   testType String [not null]
   durationMinutes Int [not null]
@@ -308,7 +333,7 @@ Table tests {
   startTime DateTime
   endTime DateTime
   createdAt DateTime [default: `now()`, not null]
-  subject subjects [not null]
+  chapter chapters [not null]
   testQuestions test_questions [not null]
   submissions submissions [not null]
   learningProgress learning_progress [not null]
@@ -336,6 +361,9 @@ Table submissions {
   score Float
   status String [not null, default: 'PENDING']
   finalScoreStatus String
+  studentFileUrl String
+  teacherFeedback String
+  feedbackFileUrl String
   submittedAt DateTime [default: `now()`, not null]
   test tests [not null]
   student users [not null]
@@ -370,6 +398,37 @@ Table learning_progress {
   test tests
 }
 
+Table schedules {
+  id String [pk]
+  classGroupId String [not null]
+  teacherId String [not null]
+  title String [not null]
+  description String
+  startAt DateTime [not null]
+  endAt DateTime [not null]
+  dayOfWeek Int
+  roomLink String
+  createdAt DateTime [default: `now()`, not null]
+  classGroup class_groups [not null]
+  teacher users [not null]
+  attendances attendances [not null]
+}
+
+Table attendances {
+  id String [pk]
+  scheduleId String [not null]
+  studentId String [not null]
+  status String [not null, default: 'PRESENT']
+  note String
+  createdAt DateTime [default: `now()`, not null]
+  schedule schedules [not null]
+  student users [not null]
+
+  indexes {
+    (scheduleId, studentId) [unique]
+  }
+}
+
 Table forums {
   id String [pk]
   subjectId String [not null]
@@ -401,21 +460,6 @@ Table messages {
   createdAt DateTime [default: `now()`, not null]
   sender users [not null]
   receiver users [not null]
-}
-
-Table schedules {
-  id String [pk]
-  classGroupId String [not null]
-  teacherId String [not null]
-  title String [not null]
-  description String
-  startAt DateTime [not null]
-  endAt DateTime [not null]
-  dayOfWeek Int [not null]
-  roomLink String
-  createdAt DateTime [default: `now()`, not null]
-  classGroup class_groups [not null]
-  teacher users [not null]
 }
 
 Table notifications {
@@ -511,15 +555,17 @@ Ref: courses.adminId > users.id
 
 Ref: subjects.courseId > courses.id [delete: Cascade]
 
+Ref: chapters.subjectId > subjects.id [delete: Cascade]
+
 Ref: class_groups.subjectId > subjects.id [delete: Cascade]
 
 Ref: class_group_users.userId > users.id [delete: Cascade]
 
 Ref: class_group_users.classGroupId > class_groups.id [delete: Cascade]
 
-Ref: taskmen.subjectId > subjects.id [delete: Cascade]
+Ref: taskmen.chapterId > chapters.id [delete: Cascade]
 
-Ref: videos.subjectId > subjects.id [delete: Cascade]
+Ref: videos.chapterId > chapters.id [delete: Cascade]
 
 Ref: questions.subjectId > subjects.id [delete: Cascade]
 
@@ -529,7 +575,7 @@ Ref: questions.typeId > question_types.id
 
 Ref: question_answers.questionId > questions.id [delete: Cascade]
 
-Ref: tests.subjectId > subjects.id [delete: Cascade]
+Ref: tests.chapterId > chapters.id [delete: Cascade]
 
 Ref: test_questions.testId > tests.id [delete: Cascade]
 
@@ -557,6 +603,14 @@ Ref: learning_progress.taskId > taskmen.id [delete: Cascade]
 
 Ref: learning_progress.testId > tests.id [delete: Cascade]
 
+Ref: schedules.classGroupId > class_groups.id [delete: Cascade]
+
+Ref: schedules.teacherId > users.id
+
+Ref: attendances.scheduleId > schedules.id [delete: Cascade]
+
+Ref: attendances.studentId > users.id
+
 Ref: forums.subjectId > subjects.id [delete: Cascade]
 
 Ref: forum_posts.forumId > forums.id [delete: Cascade]
@@ -568,10 +622,6 @@ Ref: forum_posts.parentId - forum_posts.id [delete: Set Null]
 Ref: messages.senderId > users.id
 
 Ref: messages.receiverId > users.id
-
-Ref: schedules.classGroupId > class_groups.id [delete: Cascade]
-
-Ref: schedules.teacherId > users.id
 
 Ref: notifications.userId > users.id [delete: Cascade]
 

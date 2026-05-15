@@ -65,7 +65,23 @@ export class AdminCourseController extends AdminController {
         return this.res.status(401).json({ success: false, message: "Không xác định Admin" });
       }
 
-      const { title, description, price, thumbnailUrl, subjects } = this.req.body;
+      const {
+        title,
+        description,
+        price,
+        thumbnailUrl,
+        subjects,
+        startDate,
+        endDate,
+        durationValue,
+        durationUnit,
+        daysOfWeek,
+        level,
+        maxStudents,
+        language,
+        isFeatured,
+        discountPrice
+      } = this.req.body;
 
       if (!title || !price || !Array.isArray(subjects)) {
         return this.res.status(400).json({ 
@@ -83,6 +99,16 @@ export class AdminCourseController extends AdminController {
           thumbnailUrl: thumbnailUrl || null,
           status: "DRAFT",
           adminId,
+          startDate: startDate ? new Date(startDate) : undefined,
+          endDate: endDate ? new Date(endDate) : undefined,
+          durationValue: durationValue !== undefined ? parseInt(durationValue as any, 10) : undefined,
+          durationUnit: durationUnit || undefined,
+          daysOfWeek: daysOfWeek || undefined,
+          level: level || undefined,
+          maxStudents: maxStudents !== undefined ? parseInt(maxStudents as any, 10) : undefined,
+          language: language || undefined,
+          isFeatured: typeof isFeatured === 'boolean' ? isFeatured : undefined,
+          discountPrice: discountPrice !== undefined ? parseFloat(discountPrice as any) : undefined,
           subjects: {
             create: subjects.map((subject: any, index: number) => ({
               name: subject.name,
@@ -96,7 +122,7 @@ export class AdminCourseController extends AdminController {
                   }] : []),
                   ...(subject.assistantTeacher ? [{
                     teacherId: subject.assistantTeacher,
-                    type: "ASSISTANT"
+                    type: "TA"
                   }] : [])
                 ]
               }
@@ -169,7 +195,23 @@ export class AdminCourseController extends AdminController {
   async updateCourse() {
     try {
       const { id } = this.req.params;
-      const { title, description, price, thumbnailUrl, status } = this.req.body;
+      const {
+        title,
+        description,
+        price,
+        thumbnailUrl,
+        status,
+        startDate,
+        endDate,
+        durationValue,
+        durationUnit,
+        daysOfWeek,
+        level,
+        maxStudents,
+        language,
+        isFeatured,
+        discountPrice
+      } = this.req.body;
 
       const course = await models.course.update({
         where: { id },
@@ -178,7 +220,17 @@ export class AdminCourseController extends AdminController {
           description: description || undefined,
           price: price ? parseFloat(price as any) : undefined,
           thumbnailUrl: thumbnailUrl || undefined,
-          status: status || undefined
+          status: status || undefined,
+          startDate: startDate ? new Date(startDate) : undefined,
+          endDate: endDate ? new Date(endDate) : undefined,
+          durationValue: durationValue !== undefined ? parseInt(durationValue as any, 10) : undefined,
+          durationUnit: durationUnit || undefined,
+          daysOfWeek: daysOfWeek || undefined,
+          level: level || undefined,
+          maxStudents: maxStudents !== undefined ? parseInt(maxStudents as any, 10) : undefined,
+          language: language || undefined,
+          isFeatured: typeof isFeatured === 'boolean' ? isFeatured : undefined,
+          discountPrice: discountPrice !== undefined ? parseFloat(discountPrice as any) : undefined
         },
         include: {
           subjects: {

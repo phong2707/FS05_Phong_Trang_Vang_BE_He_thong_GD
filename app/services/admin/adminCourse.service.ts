@@ -19,7 +19,7 @@ export const adminCourseService = {
           firstName: true,
           lastName: true,
           email: true,
-          avatar: true
+          avatarUrl: true
         },
         orderBy: { firstName: "asc" }
       });

@@ -6,10 +6,11 @@ async function seed() {
     console.log("🚀 BẮT ĐẦU QUÁ TRÌNH SEED DỮ LIỆU...");
 
     // ==========================================
-    // 1. DỌN DẸP DỮ LIỆU CŨ (Thứ tự quan trọng)
+    // 1. DỌN DẸP DỮ LIỆU CŨ (Thứ tự rất quan trọng vì khóa ngoại)
     // ==========================================
     console.log("🧹 Đang dọn dẹp dữ liệu cũ (Cascading)...");
     
+    await models.attendance.deleteMany({}); // ✅ NEW: Xóa điểm danh
     await models.userQuestionAnswer.deleteMany({});
     await models.submission.deleteMany({});
     await models.testQuestion.deleteMany({});
@@ -17,6 +18,7 @@ async function seed() {
     await models.learningProgress.deleteMany({});
     await models.video.deleteMany({});
     await models.taskman.deleteMany({});
+    await models.chapter.deleteMany({}); // ✅ NEW: Xóa chương học
     await models.questionAnswer.deleteMany({});
     await models.question.deleteMany({});
     await models.questionType.deleteMany({});
@@ -26,7 +28,6 @@ async function seed() {
     await models.classGroupUser.deleteMany({});
     await models.classGroup.deleteMany({});
     
-    // ✅ THÊM: Xóa dữ liệu bảng trung gian trước khi xóa môn học
     await models.subjectTeacher.deleteMany({}); 
     await models.subject.deleteMany({});
     
@@ -57,7 +58,6 @@ async function seed() {
     const roleStudent = await models.role.create({ data: { code: "STUDENT", name: "Học viên", description: "Người dùng học tập" } });
 
     // Feature Admin Management
-    // Feature Admin Management
     const featAM = await models.feature.create({ data: { code: "AM", name: "Quản trị Hệ thống", type: "SYSTEM" } });
     const permsAM = await Promise.all([
       models.permission.create({ data: { code: "AM::READ", name: "Xem hệ thống", featureId: featAM.id } }),
@@ -65,6 +65,7 @@ async function seed() {
       models.permission.create({ data: { code: "AM::UPDATE", name: "Cập nhật hệ thống", featureId: featAM.id } }),
       models.permission.create({ data: { code: "AM::DELETE", name: "Xóa dữ liệu hệ thống", featureId: featAM.id } }),
     ]);
+    
     // Feature User Management
     const featUM = await models.feature.create({ data: { code: "UM", name: "Quản lý Người dùng", type: "FEATURE", parentId: featAM.id } });
     const permsUM = await Promise.all([
@@ -81,13 +82,8 @@ async function seed() {
 
     await models.roleToPermission.createMany({
       data: [
-        // Map TOÀN BỘ quyền AM (đã bao gồm AM::CREATE) cho Admin
         ...permsAM.map(p => ({ roleId: roleAdmin.id, permissionId: p.id })),
-        
-        // Map quyền UM cho Admin
         ...permsUM.map(p => ({ roleId: roleAdmin.id, permissionId: p.id })),
-        
-        // Map quyền Course cho các role
         { roleId: roleAdmin.id, permissionId: permCourseView.id },
         { roleId: roleAdmin.id, permissionId: permCourseEdit.id },
         { roleId: roleTeacher.id, permissionId: permCourseView.id },
@@ -125,7 +121,6 @@ async function seed() {
 
     const ta = await models.user.create({ data: { firstName: "Bảo", lastName: "Phạm", email: "bao.pham@iviettech.vn", status: UserStatus.ACTIVE, gender: "MALE", passwords: { create: { password: hashedPassword, type: PasswordType.PASSWORD } }, roles: { create: { roleId: roleTA.id } } } });
 
-    // ✅ THÊM TÀI KHOẢN THEO YÊU CẦU:
     const specificStudent = await models.user.create({
       data: {
         firstName: "Cyleish", lastName: "Student", email: "phongnguyenatx2707@gmail.com", status: UserStatus.ACTIVE, phoneNumber: "0988888888",
@@ -151,15 +146,25 @@ async function seed() {
     ));
 
     // ==========================================
-    // 4. TẠO KHÓA HỌC & MÔN HỌC (Đã sửa N-N)
+    // 4. TẠO KHÓA HỌC & MÔN HỌC (Có thêm field thực tế)
     // ==========================================
-    console.log("📚 Đang tạo Khóa học...");
+    console.log("📚 Đang tạo Khóa học & Cấu trúc Chương học...");
 
     const courseWeb = await models.course.create({
       data: {
         title: "Fullstack Web Development (React & Node.js)", 
         description: "Trở thành lập trình viên Fullstack thực chiến với ReactJS, Next.js, Node.js, Express và Prisma ORM.",
-        price: 4500000, status: "PUBLISHED", adminId: admin.id,
+        price: 4500000, 
+        discountPrice: 3900000,         // ✅ NEW
+        startDate: new Date("2026-06-01"), // ✅ NEW
+        durationValue: 6,               // ✅ NEW
+        durationUnit: "MONTH",          // ✅ NEW
+        daysOfWeek: "T2, T4, T6",       // ✅ NEW
+        level: "BEGINNER",              // ✅ NEW
+        maxStudents: 100,               // ✅ NEW
+        isFeatured: true,               // ✅ NEW
+        status: "PUBLISHED", 
+        adminId: admin.id,
         thumbnailUrl: "https://placehold.co/800x400/2563eb/white?text=Fullstack+Web",
       }
     });
@@ -173,7 +178,6 @@ async function seed() {
       }
     });
 
-    // ✅ SỬA LOGIC GÁN GIÁO VIÊN QUA BẢNG TRUNG GIAN
     const subReact = await models.subject.create({
       data: { 
         courseId: courseWeb.id, name: "Frontend với ReactJS & TypeScript", sortOrder: 1,
@@ -184,7 +188,7 @@ async function seed() {
     const subNode = await models.subject.create({
       data: { 
         courseId: courseWeb.id, name: "Backend với Node.js & Express", sortOrder: 2,
-        teachers: { create: { teacherId: ta.id, type: "ASSISTANT" } }
+        teachers: { create: { teacherId: ta.id, type: "TA" } } // Chú ý: Đổi ASSISTANT thành TA theo enum
       }
     });
 
@@ -195,39 +199,50 @@ async function seed() {
       }
     });
 
+    // ✅ NEW: TẠO CHƯƠNG HỌC (CHAPTERS)
+    const chapReact1 = await models.chapter.create({ data: { subjectId: subReact.id, title: "Chương 1: Nền tảng React & Component", sortOrder: 1 } });
+    const chapReact2 = await models.chapter.create({ data: { subjectId: subReact.id, title: "Chương 2: Hooks & Quản lý State", sortOrder: 2 } });
+    const chapNode1 = await models.chapter.create({ data: { subjectId: subNode.id, title: "Chương 1: ExpressJS Cơ bản", sortOrder: 1 } });
+    const chapQA1 = await models.chapter.create({ data: { subjectId: subISTQB.id, title: "Chương 1: 7 Nguyên lý Kiểm thử", sortOrder: 1 } });
+
     // ==========================================
     // 5. TẠO LỚP HỌC (CLASS GROUPS) & ENROLLMENT
     // ==========================================
-    const classFS1 = await models.classGroup.create({ data: { subjectId: subReact.id, name: "FS-K40-Online" } });
-    const classFS2 = await models.classGroup.create({ data: { subjectId: subNode.id, name: "FS-K40-Online" } });
-    const classQA1 = await models.classGroup.create({ data: { subjectId: subISTQB.id, name: "QA-K22-Offline" } });
+    const classFS1 = await models.classGroup.create({ 
+      data: { 
+        subjectId: subReact.id, name: "FS-K40-Online", 
+        startDate: new Date("2026-06-05"), endDate: new Date("2026-12-05"), // ✅ NEW
+        maxStudents: 30, roomLink: "https://meet.google.com/react-class"   // ✅ NEW
+      } 
+    });
+    const classFS2 = await models.classGroup.create({ data: { subjectId: subNode.id, name: "FS-K40-Online", maxStudents: 30 } });
+    const classQA1 = await models.classGroup.create({ data: { subjectId: subISTQB.id, name: "QA-K22-Offline", maxStudents: 20 } });
 
-    // Enroll students bình thường
     await Promise.all(students.slice(0, 8).map((s: { id: string; }) => models.classGroupUser.createMany({ data: [
       { userId: s.id, classGroupId: classFS1.id, role: "STUDENT" },
       { userId: s.id, classGroupId: classFS2.id, role: "STUDENT" }
     ]})));
     await Promise.all(students.slice(8, 12).map((s: { id: string; }) => models.classGroupUser.create({ data: { userId: s.id, classGroupId: classQA1.id, role: "STUDENT" } })));
 
-    // ✅ ENROLL cho bạn cyleish2108@gmail.com vào khóa Fullstack để có dữ liệu test
+    // Enroll for cyleish
     await models.classGroupUser.createMany({ data: [
       { userId: specificStudent.id, classGroupId: classFS1.id, role: "STUDENT" },
       { userId: specificStudent.id, classGroupId: classFS2.id, role: "STUDENT" }
     ]});
 
     // ==========================================
-    // 6. NỘI DUNG BÀI GIẢNG (VIDEOS & TASKS)
+    // 6. NỘI DUNG BÀI GIẢNG (VIDEOS & TASKS) - Liên kết với Chapter
     // ==========================================
     console.log("🎥 Đang tạo Bài giảng và Bài tập...");
 
-    const v1 = await models.video.create({ data: { subjectId: subReact.id, title: "1. Giới thiệu React & Setup môi trường Vite", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", durationSeconds: 1500, provider: "YOUTUBE", sortOrder: 1 } });
-    const v2 = await models.video.create({ data: { subjectId: subReact.id, title: "2. Phân tích JSX và Components", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", durationSeconds: 2100, provider: "YOUTUBE", sortOrder: 2 } });
-    const v3 = await models.video.create({ data: { subjectId: subReact.id, title: "3. Quản lý State với useState & useEffect", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", durationSeconds: 2800, provider: "YOUTUBE", sortOrder: 3 } });
-    
-    const v4 = await models.video.create({ data: { subjectId: subISTQB.id, title: "1. 7 Nguyên lý kiểm thử phần mềm", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", durationSeconds: 1800, provider: "YOUTUBE", sortOrder: 1 } });
+    // ✅ SỬA: Đổi subjectId thành chapterId
+    const v1 = await models.video.create({ data: { chapterId: chapReact1.id, title: "1. Giới thiệu React & Setup môi trường Vite", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", durationSeconds: 1500, provider: "YOUTUBE", sortOrder: 1 } });
+    const v2 = await models.video.create({ data: { chapterId: chapReact1.id, title: "2. Phân tích JSX và Components", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", durationSeconds: 2100, provider: "YOUTUBE", sortOrder: 2 } });
+    const v3 = await models.video.create({ data: { chapterId: chapReact2.id, title: "3. Quản lý State với useState & useEffect", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", durationSeconds: 2800, provider: "YOUTUBE", sortOrder: 1 } });
+    const v4 = await models.video.create({ data: { chapterId: chapQA1.id, title: "1. 7 Nguyên lý kiểm thử phần mềm", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", durationSeconds: 1800, provider: "YOUTUBE", sortOrder: 1 } });
 
-    const task1 = await models.taskman.create({ data: { subjectId: subReact.id, title: "Bài tập 1: Xây dựng Layout CV cá nhân", fileType: "PDF", url: "https://drive.google.com/...", sortOrder: 4 } });
-    const task2 = await models.taskman.create({ data: { subjectId: subNode.id, title: "Bài tập 1: Viết API CRUD với Express", fileType: "PDF", url: "https://drive.google.com/...", sortOrder: 1 } });
+    const task1 = await models.taskman.create({ data: { chapterId: chapReact1.id, title: "Bài tập 1: Xây dựng Layout CV cá nhân", fileType: "PDF", url: "https://drive.google.com/...", sortOrder: 3 } });
+    const task2 = await models.taskman.create({ data: { chapterId: chapNode1.id, title: "Bài tập 1: Viết API CRUD với Express", fileType: "PDF", url: "https://drive.google.com/...", sortOrder: 1 } });
 
     // ==========================================
     // 7. HỆ THỐNG THI CỬ (QUIZZES & EXAMS)
@@ -235,6 +250,7 @@ async function seed() {
     console.log("📝 Đang tạo Ngân hàng câu hỏi và Đề thi...");
     const typeSingle = await models.questionType.create({ data: { name: "Single Choice" } });
 
+    // Question vẫn nằm ở Subject (Ngân hàng câu hỏi chung cho cả môn)
     const q1 = await models.question.create({
       data: {
         subjectId: subReact.id, teacherId: teachers[0].id, typeId: typeSingle.id, content: "Virtual DOM trong React hoạt động như thế nào?", explanation: "Virtual DOM tạo ra một bản sao của DOM thật, so sánh sự thay đổi (diffing) và chỉ cập nhật những node cần thiết.",
@@ -257,9 +273,10 @@ async function seed() {
       }
     });
 
+    // ✅ SỬA: Bài Test giờ nằm ở Chapter (Thi hết chương)
     const testReact = await models.test.create({
       data: {
-        subjectId: subReact.id, title: "Quiz 1: Kiến thức nền tảng React", testType: "QUIZ", durationMinutes: 15, maxAttempts: 3,
+        chapterId: chapReact1.id, title: "Quiz 1: Kiến thức nền tảng React", testType: "QUIZ", durationMinutes: 15, maxAttempts: 3,
         testQuestions: { create: [{ questionId: q1.id, points: 5, sortOrder: 1 }, { questionId: q2.id, points: 5, sortOrder: 2 }] }
       }
     });
@@ -273,15 +290,18 @@ async function seed() {
       data: [
         { studentId: students[0].id, videoId: v1.id, status: "COMPLETED", completedAt: new Date() },
         { studentId: students[0].id, videoId: v2.id, status: "COMPLETED", completedAt: new Date() },
-        { studentId: specificStudent.id, videoId: v1.id, status: "COMPLETED", completedAt: new Date() } // Thêm progress test cho tài khoản mới
+        { studentId: specificStudent.id, videoId: v1.id, status: "COMPLETED", completedAt: new Date() }
       ]
     });
 
     const ansQ1 = await models.questionAnswer.findFirst({ where: { questionId: q1.id, isCorrect: true } });
     const ansQ2 = await models.questionAnswer.findFirst({ where: { questionId: q2.id, isCorrect: false } });
+    
     await models.submission.create({
       data: {
         testId: testReact.id, studentId: students[0].id, classGroupId: classFS1.id, score: 5, status: "GRADED", finalScoreStatus: "AUTO_GRADED",
+        teacherFeedback: "Em làm rất tốt, tuy nhiên cần ôn lại kỹ phần Component Lifecycle nhé!", // ✅ NEW
+        studentFileUrl: "https://docs.google.com/document/d/...", // ✅ NEW (Minh họa nộp file)
         userAnswers: { create: [
           { questionId: q1.id, answerId: ansQ1?.id, isCorrect: true },
           { questionId: q2.id, answerId: ansQ2?.id, isCorrect: false }
@@ -297,19 +317,27 @@ async function seed() {
       models.transaction.create({ data: { studentId: s.id, courseId: courseQA.id, amount: 3200000, paymentMethod: "MOMO", status: "SUCCESS", referenceCode: `MOMO_QA_${i}` } })
     ));
     
-    // Giao dịch cho cyleish2108
     await models.transaction.create({ data: { studentId: specificStudent.id, courseId: courseWeb.id, amount: 4500000, paymentMethod: "VNPAY", status: "SUCCESS", referenceCode: `VNPAY_WEB_CYLEISH` } });
 
     // ==========================================
-    // 9. FORUM, CHAT & NOTIFICATIONS
+    // 9. FORUM, CHAT, LỊCH HỌC & ĐIỂM DANH
     // ==========================================
-    console.log("💬 Đang tạo Lịch học, Diễn đàn & Đánh giá...");
+    console.log("💬 Đang tạo Lịch học, Điểm danh, Diễn đàn & Đánh giá...");
 
-    await models.schedule.create({
+    const schedule1 = await models.schedule.create({
       data: {
         classGroupId: classFS1.id, teacherId: teachers[0].id, title: "Buổi 1: Khai giảng & Cài đặt môi trường",
         startAt: new Date("2026-05-01T19:00:00Z"), endAt: new Date("2026-05-01T21:30:00Z"), dayOfWeek: 5, roomLink: "https://meet.google.com/iviettech"
       }
+    });
+
+    // ✅ NEW: Điểm danh sinh viên cho Buổi học 1
+    await models.attendance.createMany({
+      data: [
+        { scheduleId: schedule1.id, studentId: students[0].id, status: "PRESENT", note: "Học rất năng nổ" },
+        { scheduleId: schedule1.id, studentId: students[1].id, status: "LATE", note: "Vào muộn 15p" },
+        { scheduleId: schedule1.id, studentId: specificStudent.id, status: "PRESENT" },
+      ]
     });
 
     const forum = await models.forum.create({ data: { subjectId: subReact.id, title: "Hỏi đáp Frontend - K40" } });

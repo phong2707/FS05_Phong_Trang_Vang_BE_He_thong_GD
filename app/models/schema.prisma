@@ -14,16 +14,15 @@ generator dbml {
 datasource db {
   provider = "sqlite"
 }
-
 // ==========================================
 // 1. USER & SECURITY MANAGEMENT (RBAC)
 // ==========================================
 
 model User {
-  id          String    @id @default(uuid()) @map("id")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime? @default(now()) @updatedAt @map("updated_at")
-  deleted     Boolean   @default(false) @map("deleted")
+  id        String    @id @default(uuid()) @map("id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @default(now()) @updatedAt @map("updated_at")
+  deleted   Boolean   @default(false) @map("deleted")
 
   firstName   String    @map("first_name")
   lastName    String    @map("last_name")
@@ -54,10 +53,11 @@ model User {
   // --- LMS Relations ---
   managedCourses    Course[]           @relation("AdminManager")
   classEnrollments  ClassGroupUser[]
-  teachingSubjects SubjectTeacher[]
+  teachingSubjects  SubjectTeacher[]
   questions         Question[]
   submissions       Submission[]
   gradedSubmissions Submission[]       @relation("Grader")
+  attendances       Attendance[]
   forumPosts        ForumPost[]
   sentMessages      Message[]          @relation("Sender")
   receivedMessages  Message[]          @relation("Receiver")
@@ -212,9 +212,9 @@ model Request {
 }
 
 model SubjectTeacher {
-  subjectId String @map("subject_id")
-  teacherId String @map("teacher_id")
-  type      String @default("MAIN") @map("type") 
+  subjectId String   @map("subject_id")
+  teacherId String   @map("teacher_id")
+  type      String   @default("MAIN") @map("type") // MAIN, TA
   createdAt DateTime @default(now()) @map("created_at")
 
   subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
@@ -225,7 +225,7 @@ model SubjectTeacher {
 }
 
 // ==========================================
-// 2. COURSE & CONTENT MANAGEMENT
+// 2. COURSE, SUBJECT & CLASS MANAGEMENT
 // ==========================================
 
 model Course {
@@ -234,12 +234,25 @@ model Course {
   description  String?
   thumbnailUrl String?  @map("thumbnail_url")
   price        Float
+  
+  // --- Fields Thực tế ---
+  startDate    DateTime? @map("start_date")
+  endDate      DateTime? @map("end_date")
+  durationValue Int?     @map("duration_value") 
+  durationUnit  String?  @default("MONTH") @map("duration_unit") 
+  daysOfWeek    String?  @map("days_of_week") 
+  level         String?  @default("BEGINNER")   
+  maxStudents   Int?     @map("max_students")   
+  language      String?  @default("VI") @map("language") 
+  isFeatured    Boolean  @default(false) @map("is_featured")
+  discountPrice Float?   @map("discount_price")
+  
   status       String   @default("DRAFT") // DRAFT, PUBLISHED, ARCHIVED
   adminId      String   @map("admin_id")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  admin         User            @relation("AdminManager", fields: [adminId], references: [id])
+  admin         User           @relation("AdminManager", fields: [adminId], references: [id])
   subjects      Subject[]
   courseReviews CourseReview[]
   transactions  Transaction[]
@@ -255,24 +268,45 @@ model Subject {
   sortOrder   Int      @default(0) @map("sort_order")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
   teachers    SubjectTeacher[]
   classGroups ClassGroup[]
-  taskmen     Taskman[]
-  videos      Video[]
+  chapters    Chapter[]        // Đã thay đổi: Liên kết tới Chapter thay vì bài học trực tiếp
   questions   Question[]
-  tests       Test[]
   forums      Forum[]
 
   @@map("subjects")
 }
 
+// --- BẢNG MỚI: Chương học ---
+model Chapter {
+  id          String   @id @default(uuid())
+  subjectId   String   @map("subject_id")
+  title       String
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  subject     Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  videos      Video[]
+  taskmen     Taskman[]
+  tests       Test[]
+
+  @@map("chapters")
+}
+
 model ClassGroup {
-  id        String   @id @default(uuid())
-  subjectId String   @map("subject_id")
-  name      String
-  status    String   @default("ACTIVE")
-  createdAt DateTime @default(now()) @map("created_at")
+  id          String   @id @default(uuid())
+  subjectId   String   @map("subject_id")
+  name        String
+  
+  // --- Fields Thực tế cho Lớp học ---
+  startDate   DateTime? @map("start_date")
+  endDate     DateTime? @map("end_date")
+  maxStudents Int?      @default(30) @map("max_students")
+  roomLink    String?   @map("room_link") // Link Meet/Zoom cố định
+
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now()) @map("created_at")
 
   subject     Subject          @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   groupUsers  ClassGroupUser[]
@@ -296,12 +330,12 @@ model ClassGroupUser {
 }
 
 // ==========================================
-// 3. CONTENT, TESTS & GRADES
+// 3. CONTENT, TESTS & GRADES (Theo Chapter)
 // ==========================================
 
 model Taskman {
   id        String   @id @default(uuid())
-  subjectId String   @map("subject_id")
+  chapterId String   @map("chapter_id")
   title     String
   fileType  String?  @map("file_type")
   url       String
@@ -309,7 +343,7 @@ model Taskman {
   isVisible Boolean  @default(true) @map("is_visible")
   createdAt DateTime @default(now()) @map("created_at")
 
-  subject          Subject            @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  chapter          Chapter            @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   learningProgress LearningProgress[]
 
   @@map("taskmen")
@@ -317,7 +351,7 @@ model Taskman {
 
 model Video {
   id              String   @id @default(uuid())
-  subjectId       String   @map("subject_id")
+  chapterId       String   @map("chapter_id")
   title           String
   videoUrl        String   @map("video_url")
   durationSeconds Int      @map("duration_seconds")
@@ -325,7 +359,7 @@ model Video {
   sortOrder       Int      @default(0) @map("sort_order")
   createdAt       DateTime @default(now()) @map("created_at")
 
-  subject          Subject            @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  chapter          Chapter            @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   learningProgress LearningProgress[]
 
   @@map("videos")
@@ -342,7 +376,7 @@ model QuestionType {
 
 model Question {
   id             String   @id @default(uuid())
-  subjectId      String   @map("subject_id")
+  subjectId      String   @map("subject_id") // Vẫn giữ ở cấp Môn học để dùng chung
   teacherId      String   @map("teacher_id")
   typeId         String   @map("type_id")
   questionFormat String   @default("SINGLE_CHOICE") @map("question_format")
@@ -375,16 +409,16 @@ model QuestionAnswer {
 
 model Test {
   id              String    @id @default(uuid())
-  subjectId       String    @map("subject_id")
+  chapterId       String    @map("chapter_id")
   title           String
-  testType        String    @map("test_type")
+  testType        String    @map("test_type") // QUIZ, ESSAY
   durationMinutes Int       @map("duration_minutes")
   maxAttempts     Int       @default(1) @map("max_attempts")
   startTime       DateTime? @map("start_time")
   endTime         DateTime? @map("end_time")
   createdAt       DateTime  @default(now()) @map("created_at")
 
-  subject          Subject            @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  chapter          Chapter            @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   testQuestions    TestQuestion[]
   submissions      Submission[]
   learningProgress LearningProgress[]
@@ -414,6 +448,12 @@ model Submission {
   score            Float?
   status           String   @default("PENDING") // PENDING, GRADED
   finalScoreStatus String?  @map("final_score_status") // AUTO_GRADED, MANUAL_PENDING
+  
+  // --- Bổ sung xử lý File cho Tự luận ---
+  studentFileUrl   String?  @map("student_file_url")
+  teacherFeedback  String?  @map("teacher_feedback")
+  feedbackFileUrl  String?  @map("feedback_file_url")
+
   submittedAt      DateTime @default(now()) @map("submitted_at")
 
   test        Test                 @relation(fields: [testId], references: [id], onDelete: Cascade)
@@ -461,6 +501,41 @@ model LearningProgress {
 // 4. INTERACTION, SCHEDULE & FINANCE
 // ==========================================
 
+model Schedule {
+  id           String   @id @default(uuid())
+  classGroupId String   @map("class_group_id")
+  teacherId    String   @map("teacher_id")
+  title        String
+  description  String?
+  startAt      DateTime @map("start_at")
+  endAt        DateTime @map("end_at")
+  dayOfWeek    Int?     @map("day_of_week") // Optional: dùng cho lịch lặp lại
+  roomLink     String?  @map("room_link") // Link riêng cho buổi học (nếu có)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  classGroup  ClassGroup   @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  teacher     User         @relation(fields: [teacherId], references: [id])
+  attendances Attendance[]
+
+  @@map("schedules")
+}
+
+// --- BẢNG MỚI: Điểm danh ---
+model Attendance {
+  id           String   @id @default(uuid())
+  scheduleId   String   @map("schedule_id") 
+  studentId    String   @map("student_id")  
+  status       String   @default("PRESENT") // PRESENT, ABSENT, LATE, EXCUSED
+  note         String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  schedule     Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  student      User     @relation(fields: [studentId], references: [id])
+
+  @@unique([scheduleId, studentId]) 
+  @@map("attendances")
+}
+
 model Forum {
   id        String  @id @default(uuid())
   subjectId String  @map("subject_id")
@@ -501,24 +576,6 @@ model Message {
   receiver User @relation("Receiver", fields: [receiverId], references: [id])
 
   @@map("messages")
-}
-
-model Schedule {
-  id           String   @id @default(uuid())
-  classGroupId String   @map("class_group_id")
-  teacherId    String   @map("teacher_id")
-  title        String
-  description  String?
-  startAt      DateTime @map("start_at")
-  endAt        DateTime @map("end_at")
-  dayOfWeek    Int      @map("day_of_week") // 1: Monday, 7: Sunday
-  roomLink     String?  @map("room_link")
-  createdAt    DateTime @default(now()) @map("created_at")
-
-  classGroup ClassGroup @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
-  teacher    User       @relation(fields: [teacherId], references: [id])
-
-  @@map("schedules")
 }
 
 model Notification {

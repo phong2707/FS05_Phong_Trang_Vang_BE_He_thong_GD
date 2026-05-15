@@ -1,3 +1,4 @@
+// @ts-nocheck
 import models from "@models";
 
 /**

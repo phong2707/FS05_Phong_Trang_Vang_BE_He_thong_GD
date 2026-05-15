@@ -31,18 +31,20 @@ Table users {
   requestCreator requests [not null]
   requestApprover requests [not null]
   managedCourses courses [not null]
-  classEnrollments class_group_users [not null]
   teachingSubjects subject_teachers [not null]
+  classEnrollments class_group_users [not null]
+  courseEnrollments course_enrollments [not null]
+  certificates certificates [not null]
   questions questions [not null]
   submissions submissions [not null]
   gradedSubmissions submissions [not null]
   attendances attendances [not null]
+  learningProgress learning_progress [not null]
   forumPosts forum_posts [not null]
   sentMessages messages [not null]
   receivedMessages messages [not null]
   notifications notifications [not null]
   courseReviews course_reviews [not null]
-  learningProgress learning_progress [not null]
   wallet wallets
   transactions transactions [not null]
   schedules schedules [not null]
@@ -168,19 +170,6 @@ Table requests {
   approver users
 }
 
-Table subject_teachers {
-  subjectId String [not null]
-  teacherId String [not null]
-  type String [not null, default: 'MAIN']
-  createdAt DateTime [default: `now()`, not null]
-  subject subjects [not null]
-  teacher users [not null]
-
-  indexes {
-    (subjectId, teacherId) [pk]
-  }
-}
-
 Table courses {
   id String [pk]
   title String [not null]
@@ -197,14 +186,64 @@ Table courses {
   language String [default: 'VI']
   isFeatured Boolean [not null, default: false]
   discountPrice Float
+  isSequential Boolean [not null, default: false]
   status String [not null, default: 'DRAFT']
   adminId String [not null]
   createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [not null]
   admin users [not null]
   subjects subjects [not null]
+  enrollments course_enrollments [not null]
+  rules course_rules [not null]
+  certificates certificates [not null]
   courseReviews course_reviews [not null]
   transactions transactions [not null]
+}
+
+Table course_enrollments {
+  id String [pk]
+  userId String [not null]
+  courseId String [not null]
+  status String [not null, default: 'ACTIVE']
+  progress Float [not null, default: 0]
+  enrolledAt DateTime [default: `now()`, not null]
+  completedAt DateTime
+  user users [not null]
+  course courses [not null]
+  progresses learning_progress [not null]
+
+  indexes {
+    (userId, courseId) [unique]
+  }
+}
+
+Table course_rules {
+  id String [pk]
+  courseId String [not null]
+  ruleCode String [not null]
+  ruleValue String [not null]
+  description String
+  isActive Boolean [not null, default: true]
+  course courses [not null]
+
+  indexes {
+    (courseId, ruleCode) [unique]
+  }
+}
+
+Table certificates {
+  id String [pk]
+  userId String [not null]
+  courseId String [not null]
+  certificateUrl String [not null]
+  referenceCode String [unique, not null]
+  issuedAt DateTime [default: `now()`, not null]
+  user users [not null]
+  course courses [not null]
+
+  indexes {
+    (userId, courseId) [unique]
+  }
 }
 
 Table subjects {
@@ -222,16 +261,33 @@ Table subjects {
   forums forums [not null]
 }
 
+Table subject_teachers {
+  subjectId String [not null]
+  teacherId String [not null]
+  type String [not null, default: 'MAIN']
+  createdAt DateTime [default: `now()`, not null]
+  subject subjects [not null]
+  teacher users [not null]
+
+  indexes {
+    (subjectId, teacherId) [pk]
+  }
+}
+
 Table chapters {
   id String [pk]
   subjectId String [not null]
   title String [not null]
   sortOrder Int [not null, default: 0]
-  createdAt DateTime [default: `now()`, not null]
+  isLocked Boolean [not null, default: false]
+  prerequisiteId String
   subject subjects [not null]
+  prerequisite chapters
+  nextChapters chapters [not null]
   videos videos [not null]
   taskmen taskmen [not null]
   tests tests [not null]
+  createdAt DateTime [default: `now()`, not null]
 }
 
 Table class_groups {
@@ -263,6 +319,19 @@ Table class_group_users {
   }
 }
 
+Table videos {
+  id String [pk]
+  chapterId String [not null]
+  title String [not null]
+  videoUrl String [not null]
+  durationSeconds Int [not null]
+  provider String [not null]
+  sortOrder Int [not null, default: 0]
+  createdAt DateTime [default: `now()`, not null]
+  chapter chapters [not null]
+  learningProgress learning_progress [not null]
+}
+
 Table taskmen {
   id String [pk]
   chapterId String [not null]
@@ -276,17 +345,22 @@ Table taskmen {
   learningProgress learning_progress [not null]
 }
 
-Table videos {
+Table learning_progress {
   id String [pk]
-  chapterId String [not null]
-  title String [not null]
-  videoUrl String [not null]
-  durationSeconds Int [not null]
-  provider String [not null]
-  sortOrder Int [not null, default: 0]
-  createdAt DateTime [default: `now()`, not null]
-  chapter chapters [not null]
-  learningProgress learning_progress [not null]
+  enrollmentId String [not null]
+  studentId String [not null]
+  videoId String
+  taskId String
+  testId String
+  status String [not null, default: 'IN_PROGRESS']
+  watchTimeSeconds Int [not null, default: 0]
+  lastAccessedAt DateTime [default: `now()`, not null]
+  completedAt DateTime
+  enrollment course_enrollments [not null]
+  student users [not null]
+  video videos
+  task taskmen
+  test tests
 }
 
 Table question_types {
@@ -382,20 +456,6 @@ Table user_question_answers {
   submission submissions [not null]
   question questions [not null]
   answer question_answers
-}
-
-Table learning_progress {
-  id String [pk]
-  studentId String [not null]
-  videoId String
-  taskId String
-  testId String
-  status String [not null, default: 'COMPLETED']
-  completedAt DateTime
-  student users [not null]
-  video videos
-  task taskmen
-  test tests
 }
 
 Table schedules {
@@ -547,15 +607,27 @@ Ref: requests.createdById > users.id
 
 Ref: requests.approvedBy > users.id
 
+Ref: courses.adminId > users.id
+
+Ref: course_enrollments.userId > users.id [delete: Cascade]
+
+Ref: course_enrollments.courseId > courses.id [delete: Cascade]
+
+Ref: course_rules.courseId > courses.id [delete: Cascade]
+
+Ref: certificates.userId > users.id [delete: Cascade]
+
+Ref: certificates.courseId > courses.id [delete: Cascade]
+
+Ref: subjects.courseId > courses.id [delete: Cascade]
+
 Ref: subject_teachers.subjectId > subjects.id [delete: Cascade]
 
 Ref: subject_teachers.teacherId > users.id [delete: Cascade]
 
-Ref: courses.adminId > users.id
-
-Ref: subjects.courseId > courses.id [delete: Cascade]
-
 Ref: chapters.subjectId > subjects.id [delete: Cascade]
+
+Ref: chapters.prerequisiteId - chapters.id
 
 Ref: class_groups.subjectId > subjects.id [delete: Cascade]
 
@@ -563,9 +635,19 @@ Ref: class_group_users.userId > users.id [delete: Cascade]
 
 Ref: class_group_users.classGroupId > class_groups.id [delete: Cascade]
 
+Ref: videos.chapterId > chapters.id [delete: Cascade]
+
 Ref: taskmen.chapterId > chapters.id [delete: Cascade]
 
-Ref: videos.chapterId > chapters.id [delete: Cascade]
+Ref: learning_progress.enrollmentId > course_enrollments.id [delete: Cascade]
+
+Ref: learning_progress.studentId > users.id [delete: Cascade]
+
+Ref: learning_progress.videoId > videos.id [delete: Cascade]
+
+Ref: learning_progress.taskId > taskmen.id [delete: Cascade]
+
+Ref: learning_progress.testId > tests.id [delete: Cascade]
 
 Ref: questions.subjectId > subjects.id [delete: Cascade]
 
@@ -594,14 +676,6 @@ Ref: user_question_answers.submissionId > submissions.id [delete: Cascade]
 Ref: user_question_answers.questionId > questions.id [delete: Cascade]
 
 Ref: user_question_answers.answerId > question_answers.id [delete: Set Null]
-
-Ref: learning_progress.studentId > users.id [delete: Cascade]
-
-Ref: learning_progress.videoId > videos.id [delete: Cascade]
-
-Ref: learning_progress.taskId > taskmen.id [delete: Cascade]
-
-Ref: learning_progress.testId > tests.id [delete: Cascade]
 
 Ref: schedules.classGroupId > class_groups.id [delete: Cascade]
 

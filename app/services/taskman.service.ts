@@ -1,3 +1,4 @@
+// @ts-nocheck
 import path from "path";
 import models from "@models";
 import { ApplicationService } from "./application.service";

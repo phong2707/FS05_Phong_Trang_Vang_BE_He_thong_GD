@@ -1,7 +1,6 @@
 // ==========================================
-// CONFIGURATION
+// CẤU HÌNH PRISMA
 // ==========================================
-
 generator client {
   provider = "prisma-client-js"
   output   = "./generated/prisma"
@@ -12,17 +11,21 @@ generator dbml {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "sqlite" 
 }
+
 // ==========================================
-// 1. USER & SECURITY MANAGEMENT (RBAC)
+// PHẦN 1: QUẢN LÝ NGƯỜI DÚNG & PHÂN QUYỀN (RBAC)
 // ==========================================
 
+// 📌 BẢNG: User (Người dùng)
+// Tác dụng: Lưu trữ thông tin tài khoản chung (Admin, Giáo viên, Học viên, TA).
+// Tại sao cần: Là trung tâm của hệ thống, kết nối mọi hoạt động (học, dạy, thanh toán, thảo luận).
 model User {
-  id        String    @id @default(uuid()) @map("id")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime? @default(now()) @updatedAt @map("updated_at")
-  deleted   Boolean   @default(false) @map("deleted")
+  id          String    @id @default(uuid()) @map("id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime? @default(now()) @updatedAt @map("updated_at")
+  deleted     Boolean   @default(false) @map("deleted")
 
   firstName   String    @map("first_name")
   lastName    String    @map("last_name")
@@ -37,7 +40,7 @@ model User {
   ekycStatus  String    @default("NOT_REQUIRED") @map("ekyc_status")
   lastLoginAt DateTime? @map("last_login_at")
 
-  // --- RBAC Relations ---
+  // --- Quan hệ Phân quyền ---
   roles             UserToRole[]
   permissions       UserToPermission[]
   passwords         Password[]
@@ -50,20 +53,24 @@ model User {
   requestCreator    Request[]          @relation("createdBy")
   requestApprover   Request[]          @relation("approvedBy")
 
-  // --- LMS Relations ---
+  // --- Quan hệ Học tập & Giảng dạy ---
   managedCourses    Course[]           @relation("AdminManager")
-  classEnrollments  ClassGroupUser[]
   teachingSubjects  SubjectTeacher[]
+  classEnrollments  ClassGroupUser[]   // Học Live/Offline theo lớp
+  courseEnrollments CourseEnrollment[] // Ghi danh học online tự do
+  certificates      Certificate[]      // Chứng chỉ đạt được
   questions         Question[]
   submissions       Submission[]
   gradedSubmissions Submission[]       @relation("Grader")
   attendances       Attendance[]
+  learningProgress  LearningProgress[]
+  
+  // --- Quan hệ Tương tác & Tài chính ---
   forumPosts        ForumPost[]
   sentMessages      Message[]          @relation("Sender")
   receivedMessages  Message[]          @relation("Receiver")
   notifications     Notification[]
   courseReviews     CourseReview[]
-  learningProgress  LearningProgress[]
   wallet            Wallet?
   transactions      Transaction[]
   schedules         Schedule[]
@@ -71,6 +78,9 @@ model User {
   @@map("users")
 }
 
+// 📌 BẢNG: Password (Mật khẩu & Xác thực)
+// Tác dụng: Lưu trữ mật khẩu hoặc mã OTP, Refresh Token của User.
+// Tại sao cần: Tách khỏi bảng User để dễ dàng hỗ trợ nhiều hình thức đăng nhập, đổi mật khẩu đa nền tảng.
 model Password {
   id        String    @id @default(uuid())
   createdAt DateTime  @default(now()) @map("created_at")
@@ -86,6 +96,9 @@ model Password {
   @@map("passwords")
 }
 
+// 📌 BẢNG: Role (Vai trò)
+// Tác dụng: Định nghĩa các nhóm quyền (VD: ADMIN, TEACHER, STUDENT).
+// Tại sao cần: Dùng để phân quyền nhóm, thay vì phải đi gán từng quyền lặt vặt cho từng User.
 model Role {
   id          String    @id @default(uuid()) @map("id")
   createdAt   DateTime  @default(now()) @map("created_at")
@@ -107,6 +120,7 @@ model Role {
   @@map("roles")
 }
 
+// 📌 BẢNG TRUNG GIAN: UserToRole
 model UserToRole {
   userId    String    @map("user_id")
   roleId    String    @map("role_id")
@@ -120,6 +134,9 @@ model UserToRole {
   @@map("user_to_role")
 }
 
+// 📌 BẢNG: Feature (Chức năng hệ thống)
+// Tác dụng: Quản lý cây tính năng (VD: Quản lý Khóa học -> Thêm khóa học). Có parentId để phân cấp Menu.
+// Tại sao cần: Để admin có thể tự tạo thêm menu/tính năng mà không cần sửa code.
 model Feature {
   id          String    @id @default(uuid()) @map("id")
   createdAt   DateTime  @default(now()) @map("created_at")
@@ -144,6 +161,9 @@ model Feature {
   @@map("features")
 }
 
+// 📌 BẢNG: Permission (Quyền hạn chi tiết)
+// Tác dụng: Quản lý các hành động (READ, CREATE, UPDATE, DELETE) gán với từng Feature.
+// Tại sao cần: Cho phép kiểm soát phân quyền ở cấp độ thao tác (API Level).
 model Permission {
   id          String    @id @default(uuid()) @map("id")
   createdAt   DateTime  @default(now()) @map("created_at")
@@ -167,6 +187,7 @@ model Permission {
   @@map("permissions")
 }
 
+// 📌 BẢNG TRUNG GIAN: Quyền của cá nhân & Quyền của vai trò
 model UserToPermission {
   userId       String    @map("user_id")
   permissionId String    @map("permission_id")
@@ -193,6 +214,8 @@ model RoleToPermission {
   @@map("role_to_permission")
 }
 
+// 📌 BẢNG: Request (Yêu cầu phê duyệt)
+// Tác dụng: Quản lý các luồng Workflow (VD: Xin cấp quyền giáo viên, Xin duyệt khóa học).
 model Request {
   id          String    @id @default(uuid())
   createdById String    @map("created_by_id")
@@ -211,6 +234,125 @@ model Request {
   @@map("requests")
 }
 
+// ==========================================
+// PHẦN 2: QUẢN LÝ KHÓA HỌC (COURSE MANAGEMENT & ENROLLMENT)
+// ==========================================
+
+// 📌 BẢNG: Course (Khóa học)
+// Tác dụng: Khung sườn chính của 1 khóa học (Thông tin thương mại, giá cả, thời lượng).
+// Tại sao cần: Là sản phẩm hiển thị trên Landing Page cho user mua/ghi danh.
+model Course {
+  id           String   @id @default(uuid())
+  title        String
+  description  String?
+  thumbnailUrl String?  @map("thumbnail_url")
+  price        Float
+  
+  startDate    DateTime? @map("start_date")
+  endDate      DateTime? @map("end_date")
+  durationValue Int?     @map("duration_value") 
+  durationUnit  String?  @default("MONTH") @map("duration_unit") 
+  daysOfWeek    String?  @map("days_of_week") 
+  level         String?  @default("BEGINNER")   
+  maxStudents   Int?     @map("max_students")   
+  language      String?  @default("VI") @map("language") 
+  isFeatured    Boolean  @default(false) @map("is_featured")
+  discountPrice Float?   @map("discount_price")
+  isSequential  Boolean  @default(false) @map("is_sequential") // Bắt buộc học tuần tự toàn khóa?
+  
+  status       String   @default("DRAFT") // DRAFT, PUBLISHED, ARCHIVED
+  adminId      String   @map("admin_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  admin         User               @relation("AdminManager", fields: [adminId], references: [id])
+  subjects      Subject[]
+  enrollments   CourseEnrollment[] // Liên kết danh sách học viên
+  rules         CourseRule[]       // Liên kết các điều kiện/luật
+  certificates  Certificate[]
+  courseReviews CourseReview[]
+  transactions  Transaction[]
+
+  @@map("courses")
+}
+
+// 📌 BẢNG: CourseEnrollment (Ghi danh / Hợp đồng học tập)
+// Tác dụng: Lưu trữ việc 1 Học viên đang tham gia 1 Khóa học (Online tự do hoặc Offline).
+// Tại sao cần: Để theo dõi tiến độ tổng (% completion), xem khóa nào hoàn thành, khóa nào đang học.
+model CourseEnrollment {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  courseId    String    @map("course_id")
+  status      String    @default("ACTIVE") // ACTIVE, COMPLETED, CANCELLED
+  progress    Float     @default(0)        // Cache % tiến độ (0 - 100)
+  enrolledAt  DateTime  @default(now())    @map("enrolled_at")
+  completedAt DateTime? @map("completed_at")
+
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course      Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  progresses  LearningProgress[] // Chi tiết tiến độ từng bài học
+
+  @@unique([userId, courseId])
+  @@index([userId, status])
+  @@map("course_enrollments")
+}
+
+// 📌 BẢNG: CourseRule (Luật học & Thi)
+// Tác dụng: Cấu hình linh hoạt các điều kiện cho khóa học (VD: MAX_ABSENCE = 3, MIN_SCORE = 8).
+// Tại sao cần: Đóng vai trò Rule Engine. Cho phép Admin thêm luật mới mà không cần code thêm cột vào bảng Course.
+model CourseRule {
+  id          String   @id @default(uuid())
+  courseId    String   @map("course_id")
+  ruleCode    String   @map("rule_code") 
+  ruleValue   String   @map("rule_value") // Lưu String/JSON tùy ý
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, ruleCode]) 
+  @@map("course_rules")
+}
+
+// 📌 BẢNG: Certificate (Chứng chỉ)
+// Tác dụng: Lưu trữ chứng chỉ khi sinh viên hoàn thành 100% khóa học và thỏa mãn CourseRules.
+// Tại sao cần: Cấp bằng chứng nhận có mã định danh để nhà tuyển dụng có thể tra cứu tính xác thực.
+model Certificate {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  courseId       String   @map("course_id")
+  certificateUrl String   @map("certificate_url") // Link file PDF chứng chỉ
+  referenceCode  String   @unique @map("reference_code") // Mã tra cứu (VD: CERT-2026-XYZ)
+  issuedAt       DateTime @default(now()) @map("issued_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@map("certificates")
+}
+
+// 📌 BẢNG: Subject (Môn học)
+// Tác dụng: Một khóa học lớn (VD: Fullstack) có thể chia thành nhiều môn (VD: Môn Frontend, Môn Backend).
+model Subject {
+  id          String   @id @default(uuid())
+  courseId    String   @map("course_id")
+  name        String
+  description String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teachers    SubjectTeacher[]
+  classGroups ClassGroup[]
+  chapters    Chapter[]
+  questions   Question[]       // Ngân hàng câu hỏi chung cho môn
+  forums      Forum[]
+
+  @@map("subjects")
+}
+
+// 📌 BẢNG TRUNG GIAN: Phân công giảng viên vào Môn học
 model SubjectTeacher {
   subjectId String   @map("subject_id")
   teacherId String   @map("teacher_id")
@@ -224,86 +366,42 @@ model SubjectTeacher {
   @@map("subject_teachers")
 }
 
-// ==========================================
-// 2. COURSE, SUBJECT & CLASS MANAGEMENT
-// ==========================================
-
-model Course {
-  id           String   @id @default(uuid())
-  title        String
-  description  String?
-  thumbnailUrl String?  @map("thumbnail_url")
-  price        Float
-  
-  // --- Fields Thực tế ---
-  startDate    DateTime? @map("start_date")
-  endDate      DateTime? @map("end_date")
-  durationValue Int?     @map("duration_value") 
-  durationUnit  String?  @default("MONTH") @map("duration_unit") 
-  daysOfWeek    String?  @map("days_of_week") 
-  level         String?  @default("BEGINNER")   
-  maxStudents   Int?     @map("max_students")   
-  language      String?  @default("VI") @map("language") 
-  isFeatured    Boolean  @default(false) @map("is_featured")
-  discountPrice Float?   @map("discount_price")
-  
-  status       String   @default("DRAFT") // DRAFT, PUBLISHED, ARCHIVED
-  adminId      String   @map("admin_id")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-
-  admin         User           @relation("AdminManager", fields: [adminId], references: [id])
-  subjects      Subject[]
-  courseReviews CourseReview[]
-  transactions  Transaction[]
-
-  @@map("courses")
-}
-
-model Subject {
-  id          String   @id @default(uuid())
-  courseId    String   @map("course_id")
-  name        String
-  description String?
-  sortOrder   Int      @default(0) @map("sort_order")
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  teachers    SubjectTeacher[]
-  classGroups ClassGroup[]
-  chapters    Chapter[]        // Đã thay đổi: Liên kết tới Chapter thay vì bài học trực tiếp
-  questions   Question[]
-  forums      Forum[]
-
-  @@map("subjects")
-}
-
-// --- BẢNG MỚI: Chương học ---
+// 📌 BẢNG: Chapter (Chương / Học phần)
+// Tác dụng: Gom nhóm bài giảng (Video/Task/Test) thành từng chương theo Lộ trình học (Learning Path).
+// Tại sao cần: Quản lý việc khóa/mở bài học tuần tự (prerequisiteId) bắt buộc sinh viên học theo thứ tự.
 model Chapter {
-  id          String   @id @default(uuid())
-  subjectId   String   @map("subject_id")
-  title       String
-  sortOrder   Int      @default(0) @map("sort_order")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id             String   @id @default(uuid())
+  subjectId      String   @map("subject_id")
+  title          String
+  sortOrder      Int      @default(0) @map("sort_order")
+  
+  isLocked       Boolean  @default(false) @map("is_locked") 
+  prerequisiteId String?  @map("prerequisite_id") // ID của chương bắt buộc phải học trước
 
-  subject     Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  videos      Video[]
-  taskmen     Taskman[]
-  tests       Test[]
+  subject        Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  prerequisite   Chapter?   @relation("ChapterSequence", fields: [prerequisiteId], references: [id])
+  nextChapters   Chapter[]  @relation("ChapterSequence")
+
+  videos         Video[]
+  taskmen        Taskman[]
+  tests          Test[]
+  createdAt      DateTime @default(now()) @map("created_at")
 
   @@map("chapters")
 }
 
+// 📌 BẢNG: ClassGroup (Nhóm Lớp học)
+// Tác dụng: Phân sinh viên thành các lớp nhỏ (VD: Lớp Tối 2-4-6, Lớp Cuối tuần) để quản lý Offline/Live.
+// Tại sao cần: LMS cần hỗ trợ cả hình thức học tự do (Self-paced) và học theo lớp (Cohort-based).
 model ClassGroup {
   id          String   @id @default(uuid())
   subjectId   String   @map("subject_id")
   name        String
   
-  // --- Fields Thực tế cho Lớp học ---
   startDate   DateTime? @map("start_date")
   endDate     DateTime? @map("end_date")
   maxStudents Int?      @default(30) @map("max_students")
-  roomLink    String?   @map("room_link") // Link Meet/Zoom cố định
+  roomLink    String?   @map("room_link") // Link Meet/Zoom cố định của lớp
 
   status      String   @default("ACTIVE")
   createdAt   DateTime @default(now()) @map("created_at")
@@ -316,6 +414,7 @@ model ClassGroup {
   @@map("class_groups")
 }
 
+// 📌 BẢNG TRUNG GIAN: Gán Sinh viên vào Lớp
 model ClassGroupUser {
   userId       String   @map("user_id")
   classGroupId String   @map("class_group_id")
@@ -330,14 +429,32 @@ model ClassGroupUser {
 }
 
 // ==========================================
-// 3. CONTENT, TESTS & GRADES (Theo Chapter)
+// PHẦN 3: NỘI DUNG BÀI GIẢNG & TIẾN ĐỘ (CONTENT & PROGRESS)
 // ==========================================
 
+// 📌 BẢNG: Video (Bài giảng Video)
+model Video {
+  id              String   @id @default(uuid())
+  chapterId       String   @map("chapter_id")
+  title           String
+  videoUrl        String   @map("video_url")
+  durationSeconds Int      @map("duration_seconds")
+  provider        String   // VD: YOUTUBE, VIMEO, AWS_S3
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  chapter          Chapter            @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  learningProgress LearningProgress[]
+
+  @@map("videos")
+}
+
+// 📌 BẢNG: Taskman (Tài liệu / Bài tập thực hành)
 model Taskman {
   id        String   @id @default(uuid())
   chapterId String   @map("chapter_id")
   title     String
-  fileType  String?  @map("file_type")
+  fileType  String?  @map("file_type") // PDF, DOCX
   url       String
   sortOrder Int      @default(0) @map("sort_order")
   isVisible Boolean  @default(true) @map("is_visible")
@@ -349,21 +466,37 @@ model Taskman {
   @@map("taskmen")
 }
 
-model Video {
-  id              String   @id @default(uuid())
-  chapterId       String   @map("chapter_id")
-  title           String
-  videoUrl        String   @map("video_url")
-  durationSeconds Int      @map("duration_seconds")
-  provider        String
-  sortOrder       Int      @default(0) @map("sort_order")
-  createdAt       DateTime @default(now()) @map("created_at")
+// 📌 BẢNG: LearningProgress (Tiến độ học tập chi tiết)
+// Tác dụng: Track xem sinh viên đang xem video nào, học đến phút thứ mấy (watchTime), hay đã xong bài nào.
+// Tại sao cần: Là cơ sở để tính toán % Progress cho bảng CourseEnrollment và Resume video.
+model LearningProgress {
+  id                 String    @id @default(uuid())
+  enrollmentId       String    @map("enrollment_id")
+  studentId          String    @map("student_id") 
+  
+  videoId            String?   @map("video_id")
+  taskId             String?   @map("task_id")
+  testId             String?   @map("test_id")
+  
+  status             String    @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED
+  watchTimeSeconds   Int       @default(0) @map("watch_time_seconds") 
+  lastAccessedAt     DateTime  @default(now()) @updatedAt @map("last_accessed_at")
+  completedAt        DateTime? @map("completed_at")
 
-  chapter          Chapter            @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-  learningProgress LearningProgress[]
+  enrollment CourseEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  student    User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  video      Video?           @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  task       Taskman?         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  test       Test?            @relation(fields: [testId], references: [id], onDelete: Cascade)
 
-  @@map("videos")
+  @@index([enrollmentId])
+  @@index([studentId, status])
+  @@map("learning_progress")
 }
+
+// ==========================================
+// PHẦN 4: THI CỬ & CHẤM ĐIỂM (ASSESSMENT)
+// ==========================================
 
 model QuestionType {
   id          String     @id @default(uuid())
@@ -374,12 +507,14 @@ model QuestionType {
   @@map("question_types")
 }
 
+// 📌 BẢNG: Question (Ngân hàng câu hỏi)
+// Nằm ở cấp Môn học (Subject) để có thể dùng lại cho nhiều Bài thi (Test) khác nhau.
 model Question {
   id             String   @id @default(uuid())
-  subjectId      String   @map("subject_id") // Vẫn giữ ở cấp Môn học để dùng chung
+  subjectId      String   @map("subject_id") 
   teacherId      String   @map("teacher_id")
   typeId         String   @map("type_id")
-  questionFormat String   @default("SINGLE_CHOICE") @map("question_format")
+  questionFormat String   @default("SINGLE_CHOICE") @map("question_format") // Tự luận, Trắc nghiệm
   content        String
   explanation    String?
   createdAt      DateTime @default(now()) @map("created_at")
@@ -407,11 +542,12 @@ model QuestionAnswer {
   @@map("question_answers")
 }
 
+// 📌 BẢNG: Test (Bài kiểm tra / Đề thi)
 model Test {
   id              String    @id @default(uuid())
   chapterId       String    @map("chapter_id")
   title           String
-  testType        String    @map("test_type") // QUIZ, ESSAY
+  testType        String    @map("test_type") // QUIZ (Trắc nghiệm), ESSAY (Tự luận)
   durationMinutes Int       @map("duration_minutes")
   maxAttempts     Int       @default(1) @map("max_attempts")
   startTime       DateTime? @map("start_time")
@@ -439,6 +575,8 @@ model TestQuestion {
   @@map("test_questions")
 }
 
+// 📌 BẢNG: Submission (Nộp bài & Chấm điểm)
+// Tác dụng: Lưu trữ kết quả bài làm, hỗ trợ cho việc upload File báo cáo tự luận và FeedBack file của Giáo viên.
 model Submission {
   id               String   @id @default(uuid())
   testId           String   @map("test_id")
@@ -449,10 +587,9 @@ model Submission {
   status           String   @default("PENDING") // PENDING, GRADED
   finalScoreStatus String?  @map("final_score_status") // AUTO_GRADED, MANUAL_PENDING
   
-  // --- Bổ sung xử lý File cho Tự luận ---
-  studentFileUrl   String?  @map("student_file_url")
-  teacherFeedback  String?  @map("teacher_feedback")
-  feedbackFileUrl  String?  @map("feedback_file_url")
+  studentFileUrl   String?  @map("student_file_url")  // File báo cáo SV nộp
+  teacherFeedback  String?  @map("teacher_feedback")  // Nhận xét của GV
+  feedbackFileUrl  String?  @map("feedback_file_url") // File chấm đỏ của GV
 
   submittedAt      DateTime @default(now()) @map("submitted_at")
 
@@ -480,27 +617,12 @@ model UserQuestionAnswer {
   @@map("user_question_answers")
 }
 
-model LearningProgress {
-  id          String    @id @default(uuid())
-  studentId   String    @map("student_id")
-  videoId     String?   @map("video_id")
-  taskId      String?   @map("task_id")
-  testId      String?   @map("test_id")
-  status      String    @default("COMPLETED")
-  completedAt DateTime? @map("completed_at")
-
-  student User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  video   Video?   @relation(fields: [videoId], references: [id], onDelete: Cascade)
-  task    Taskman? @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  test    Test?    @relation(fields: [testId], references: [id], onDelete: Cascade)
-
-  @@map("learning_progress")
-}
-
 // ==========================================
-// 4. INTERACTION, SCHEDULE & FINANCE
+// PHẦN 5: LỊCH HỌC, ĐIỂM DANH & TƯƠNG TÁC
 // ==========================================
 
+// 📌 BẢNG: Schedule (Lịch học)
+// Tác dụng: Phục vụ mô hình Blended Learning (dạy qua Zoom/Meet hoặc dạy Offline).
 model Schedule {
   id           String   @id @default(uuid())
   classGroupId String   @map("class_group_id")
@@ -509,8 +631,8 @@ model Schedule {
   description  String?
   startAt      DateTime @map("start_at")
   endAt        DateTime @map("end_at")
-  dayOfWeek    Int?     @map("day_of_week") // Optional: dùng cho lịch lặp lại
-  roomLink     String?  @map("room_link") // Link riêng cho buổi học (nếu có)
+  dayOfWeek    Int?     @map("day_of_week") 
+  roomLink     String?  @map("room_link") 
   createdAt    DateTime @default(now()) @map("created_at")
 
   classGroup  ClassGroup   @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
@@ -520,7 +642,8 @@ model Schedule {
   @@map("schedules")
 }
 
-// --- BẢNG MỚI: Điểm danh ---
+// 📌 BẢNG: Attendance (Điểm danh)
+// Tác dụng: Ghi nhận sinh viên Có mặt/Vắng/Trễ. Là dữ liệu để xét duyệt CourseRule (VD: Cấm thi do vắng quá 3 buổi).
 model Attendance {
   id           String   @id @default(uuid())
   scheduleId   String   @map("schedule_id") 
@@ -603,6 +726,10 @@ model CourseReview {
 
   @@map("course_reviews")
 }
+
+// ==========================================
+// PHẦN 6: TÀI CHÍNH & THANH TOÁN (Giữ nguyên kiến trúc cũ)
+// ==========================================
 
 model Wallet {
   id        String   @id @default(uuid())

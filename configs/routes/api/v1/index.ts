@@ -13,6 +13,14 @@ import {TaskmanRoute} from "./taskman.route";
 
 import { SubjectRoute } from "./subject.route";
 
+import { QuestionRoute } from "./question.route";
+
+import { TestRoute } from "./test.route";
+
+
+import { AssignmentRoute } from "./assignment.route";
+
+
 export class ApiV1Route extends RailsRoute {
   public draw() {
     if (env.nodeEnv === "development") {
@@ -38,6 +46,11 @@ this.path("/subjects", SubjectRoute.draw());
 
     this.path("/", TaskmanRoute.draw());
 
+    this.path("/", QuestionRoute.draw());
+
+    this.path("/", TestRoute.draw());
+
+    this.path("/", AssignmentRoute.draw());
     // Permission routes - action(Controller, "index") tạo instance mới mỗi request
     this.get("/permissions/me", action(MyPermissionController, "index"));
 

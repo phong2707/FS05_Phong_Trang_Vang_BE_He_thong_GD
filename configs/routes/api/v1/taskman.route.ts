@@ -1,21 +1,43 @@
-import { RailsRoute, action } from 'ts-rails';
-import { TaskmanController } from '@controllers/taskman.controller';
+import { RailsRoute, action } from "ts-rails";
+import { TaskmanController } from "@controllers/taskman.controller";
 
 export class TaskmanRoute extends RailsRoute {
   public draw() {
-    this.get('/subjects/:subjectId/resources', action(TaskmanController, 'list'));
-    this.post('/subjects/:subjectId/resources/link', action(TaskmanController, 'createLink'));
-    
 
-// ✅ UPLOAD FILE – chỉ gọi controller
+    // ✅ LIST resource theo chapter
+    this.get(
+      "/chapters/:chapterId/resources",
+      action(TaskmanController, "list")
+    );
+
+    // ✅ CREATE link
     this.post(
-      "/subjects/:subjectId/resources/file",
+      "/chapters/:chapterId/resources/link",
+      action(TaskmanController, "createLink")
+    );
+
+    // ✅ CREATE file
+    this.post(
+      "/chapters/:chapterId/resources/file",
       action(TaskmanController, "createFile")
     );
 
+    // ✅ UPDATE
+    this.put(
+      "/resources/:id",
+      action(TaskmanController, "update")
+    );
 
-    this.put('/resources/:id', action(TaskmanController, 'update'));
-    this.put('/resources/:id/visibility', action(TaskmanController, 'toggleVisibility'));
-    this.delete('/resources/:id', action(TaskmanController, 'delete'));
+    // ✅ toggle visibility
+    this.put(
+      "/resources/:id/visibility",
+      action(TaskmanController, "toggleVisibility")
+    );
+
+    // ✅ DELETE
+    this.delete(
+      "/resources/:id",
+      action(TaskmanController, "delete")
+    );
   }
 }

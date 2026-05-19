@@ -1,13 +1,10 @@
-// @ts-nocheck
 import path from "path";
 import models from "@models";
 import { ApplicationService } from "./application.service";
 
-// ✅ Sử dụng typeof models để tránh lỗi prisma
 type PrismaClientType = typeof models;
 const prisma = models as PrismaClientType;
 
-/* ✅ FILE TYPE DEFINITION */
 type TaskmanFileType =
   | "LINK"
   | "WORD"
@@ -19,41 +16,27 @@ type TaskmanFileType =
   | "ZIP"
   | "OTHER";
 
-/* ✅ DETECT FILE TYPE (ĐẶT TRONG SERVICE) */
-function detectFileType(
-  mimetype: string,
-  originalName: string
-): TaskmanFileType {
+function detectFileType(mimetype: string, originalName: string): TaskmanFileType {
   const ext = path.extname(originalName).toLowerCase();
 
   if (mimetype.startsWith("image/")) return "IMAGE";
   if (mimetype.startsWith("video/")) return "VIDEO";
-
   if (mimetype === "application/pdf") return "PDF";
 
   if (
     mimetype === "application/msword" ||
-    mimetype ===
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-  ) {
-    return "WORD";
-  }
+    mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ) return "WORD";
 
   if (
     mimetype === "application/vnd.ms-excel" ||
-    mimetype ===
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-  ) {
-    return "EXCEL";
-  }
+    mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  ) return "EXCEL";
 
   if (
     mimetype === "application/vnd.ms-powerpoint" ||
-    mimetype ===
-      "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-  ) {
-    return "POWERPOINT";
-  }
+    mimetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+  ) return "POWERPOINT";
 
   if ([".zip", ".rar"].includes(ext)) return "ZIP";
 
@@ -61,42 +44,48 @@ function detectFileType(
 }
 
 export class TaskmanService extends ApplicationService {
-  /* ✅ LINK */
-  async createLink(subjectId: string, title: string, url: string) {
+
+  async createLink(chapterId: string, title: string, url: string) {
     return prisma.taskman.create({
-      data: {
-        subjectId,
-        title,
-        fileType: "LINK",
-        url,
-      },
-    });
+  data: {
+    title,
+    fileType: "LINK",
+    url,
+    chapter: {
+      connect: { id: chapterId }
+    }
+  }
+});
   }
 
-  /* ✅ FILE – AUTO FILE TYPE */
   async createFile(
-    subjectId: string,
-    title: string,
-    fileUrl: string,
-    mimetype: string,
-    originalName: string
-  ) {
-    const fileType = detectFileType(mimetype, originalName);
+  chapterId: string,
+  title: string,
+  fileUrl: string,
+  mimetype: string,
+  originalName: string
+) {
+  const fileType = detectFileType(mimetype, originalName);
 
-    return prisma.taskman.create({
-      data: {
-        subjectId,
-        title,
-        fileType,
-        url: fileUrl,
+  return prisma.taskman.create({
+    data: {
+      title,
+      url: fileUrl,
+      fileType,
+      chapter: {
+        connect: { id: chapterId },
       },
-    });
-  }
-
-  async listBySubject(subjectId: string) {
+    },
+  });
+}
+  async listByChapter(chapterId: string) {
     return prisma.taskman.findMany({
-      where: { subjectId },
-      orderBy: { createdAt: "desc" },
+      where: {
+        chapterId,
+      },
+      orderBy: {
+        sortOrder: "asc",
+      },
     });
   }
 
@@ -118,6 +107,7 @@ export class TaskmanService extends ApplicationService {
     await prisma.taskman.delete({
       where: { id },
     });
+
     return { deleted: true };
   }
 }

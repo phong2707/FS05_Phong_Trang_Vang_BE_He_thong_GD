@@ -340,6 +340,11 @@ model Subject {
   name        String
   description String?
   sortOrder   Int      @default(0) @map("sort_order")
+  
+// ✅ THÊM
+  isSequential Boolean  @default(false) @map("is_sequential")
+  allowReview Boolean @default(true)
+
   createdAt   DateTime @default(now()) @map("created_at")
 
   course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -545,16 +550,29 @@ model QuestionAnswer {
 // 📌 BẢNG: Test (Bài kiểm tra / Đề thi)
 model Test {
   id              String    @id @default(uuid())
-  chapterId       String    @map("chapter_id")
+
+  // ✅ MULTI SCOPE
+  scope           String @default("CHAPTER")    @map("scope") // CHAPTER | SUBJECT | COURSE
+
+  chapterId       String?   @map("chapter_id")
+  subjectId       String?   @map("subject_id")
+  courseId        String?   @map("course_id")
+
   title           String
-  testType        String    @map("test_type") // QUIZ (Trắc nghiệm), ESSAY (Tự luận)
+  testType        String    @map("test_type") // QUIZ, ESSAY
   durationMinutes Int       @map("duration_minutes")
   maxAttempts     Int       @default(1) @map("max_attempts")
   startTime       DateTime? @map("start_time")
   endTime         DateTime? @map("end_time")
   createdAt       DateTime  @default(now()) @map("created_at")
 
-  chapter          Chapter            @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+ 
+
+  // ✅ RELATIONS
+  chapter         Chapter?  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  subject         Subject?  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  course          Course?   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
   testQuestions    TestQuestion[]
   submissions      Submission[]
   learningProgress LearningProgress[]

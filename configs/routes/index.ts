@@ -14,6 +14,7 @@ import { DevRoute } from "./dev.route";
 import { ProfileRoute } from "./profile.route";
 import { UserRoute } from "./user.route";
 import { CourseRoute } from "./course.route";
+import { CategoryRoute } from "./category.route";
 
 
 // Configure the permission factory for the entire application.
@@ -48,6 +49,7 @@ export class Route extends RailsRoute {
     this.path("/api/auth", AuthRoute.draw());
     this.path("/api/admin", AdminRoute.draw());
     this.path("/api/courses", CourseRoute.draw());
+    this.path("/api/categories", CategoryRoute.draw());
     this.path("/me", ProfileRoute.draw());
     this.path("/users/stats", action(AdminUserController, "stats"));
     this.path("/users", UserRoute.draw());

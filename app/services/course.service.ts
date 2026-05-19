@@ -8,7 +8,10 @@ export class CourseService {
     if (title) whereClause.title = { contains: title };
     if (level) whereClause.level = level;
     if (price === 'free') whereClause.price = 0;
-    if (category) whereClause.category = category;
+    if (category && category !== "") {
+    whereClause.categoryId = category; 
+  }
+    
     else if (price === 'paid') whereClause.price = { gt: 0 };
 
     return await models.course.findMany({
@@ -16,7 +19,7 @@ export class CourseService {
       select: {
         id: true, title: true, thumbnailUrl: true, price: true, 
         discountPrice: true, level: true, durationValue: true, 
-        durationUnit: true, startDate: true,
+        durationUnit: true, startDate: true,categoryId: true
       },
       orderBy: { createdAt: 'desc' }
     });

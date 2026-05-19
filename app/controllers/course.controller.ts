@@ -12,6 +12,7 @@ export class CourseController extends ApplicationController {
         title: this.req.query.title as string,
         level: this.req.query.level as string,
         price: this.req.query.price as string,
+        category: this.req.query.category as string,
       };
       
       const courses = await CourseService.getAllCourses(filters);

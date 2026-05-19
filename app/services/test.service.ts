@@ -1,3 +1,4 @@
+
 import models from "@models";
 
 type PrismaClientType = typeof models;
@@ -35,14 +36,14 @@ export async function createTest(
   }
 
   // ✅ 1. validate scope + quyền
-  let subjectId: string;
+  let subjectId: string = "";
 
   if (data.scope === "CHAPTER") {
     if (!data.chapterId) throw new Error("Thiếu chapterId");
 
     const chapter = await prisma.chapter.findFirst({
       where: {
-        id: data.chapterId,
+        id: data.chapterId!,
         subject: {
           teachers: { some: { teacherId } },
         },
@@ -60,7 +61,7 @@ export async function createTest(
 
     const subject = await prisma.subject.findFirst({
       where: {
-        id: data.subjectId,
+        id: data.subjectId!,
         teachers: { some: { teacherId } },
       },
     });
@@ -75,7 +76,7 @@ export async function createTest(
 
     const subject = await prisma.subject.findFirst({
       where: {
-        courseId: data.courseId,
+        courseId: data.courseId!,
         teachers: {
           some: { teacherId }, // ✅ FIX SECURITY
         },
@@ -265,7 +266,7 @@ if (test.scope === "CHAPTER") {
       subject: {
         chapters: {
           some: {
-            id: test.chapterId
+            id: test.chapterId!
           }
         }
       }
@@ -277,7 +278,7 @@ if (test.scope === "SUBJECT") {
   isValid = !!(await prisma.classGroup.findFirst({
     where: {
       id: data.classGroupId,
-      subjectId: test.subjectId
+      subjectId: test.subjectId!
     }
   }));
 }
@@ -287,7 +288,7 @@ if (test.scope === "COURSE") {
     where: {
       id: data.classGroupId,
       subject: {
-        courseId: test.courseId
+        courseId: test.courseId!
       }
     }
   }));

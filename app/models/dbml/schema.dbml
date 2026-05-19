@@ -191,6 +191,8 @@ Table courses {
   adminId String [not null]
   createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [not null]
+  categoryId String
+  category categories
   admin users [not null]
   subjects subjects [not null]
   enrollments course_enrollments [not null]
@@ -198,6 +200,7 @@ Table courses {
   certificates certificates [not null]
   courseReviews course_reviews [not null]
   transactions transactions [not null]
+  tests tests [not null]
 }
 
 Table course_enrollments {
@@ -252,6 +255,8 @@ Table subjects {
   name String [not null]
   description String
   sortOrder Int [not null, default: 0]
+  isSequential Boolean [not null, default: false]
+  allowReview Boolean [not null, default: true]
   createdAt DateTime [default: `now()`, not null]
   course courses [not null]
   teachers subject_teachers [not null]
@@ -259,6 +264,7 @@ Table subjects {
   chapters chapters [not null]
   questions questions [not null]
   forums forums [not null]
+  tests tests [not null]
 }
 
 Table subject_teachers {
@@ -399,7 +405,10 @@ Table question_answers {
 
 Table tests {
   id String [pk]
-  chapterId String [not null]
+  scope String [not null, default: 'CHAPTER']
+  chapterId String
+  subjectId String
+  courseId String
   title String [not null]
   testType String [not null]
   durationMinutes Int [not null]
@@ -407,7 +416,9 @@ Table tests {
   startTime DateTime
   endTime DateTime
   createdAt DateTime [default: `now()`, not null]
-  chapter chapters [not null]
+  chapter chapters
+  subject subjects
+  course courses
   testQuestions test_questions [not null]
   submissions submissions [not null]
   learningProgress learning_progress [not null]
@@ -563,6 +574,22 @@ Table transactions {
   course courses [not null]
 }
 
+Table categories {
+  id String [pk]
+  name String [not null]
+  slug String [unique, not null]
+  description String
+  iconUrl String
+  parentId String
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  parent categories
+  children categories [not null]
+  courses courses [not null]
+}
+
 Table createdBy {
   rolecreatedId String [ref: > roles.id]
   featurecreatedId String [ref: > features.id]
@@ -606,6 +633,8 @@ Ref: role_to_permission.permissionId > permissions.id [delete: Cascade]
 Ref: requests.createdById > users.id
 
 Ref: requests.approvedBy > users.id
+
+Ref: courses.categoryId > categories.id [delete: Set Null]
 
 Ref: courses.adminId > users.id
 
@@ -659,6 +688,10 @@ Ref: question_answers.questionId > questions.id [delete: Cascade]
 
 Ref: tests.chapterId > chapters.id [delete: Cascade]
 
+Ref: tests.subjectId > subjects.id [delete: Cascade]
+
+Ref: tests.courseId > courses.id [delete: Cascade]
+
 Ref: test_questions.testId > tests.id [delete: Cascade]
 
 Ref: test_questions.questionId > questions.id [delete: Cascade]
@@ -708,3 +741,5 @@ Ref: wallets.userId - users.id [delete: Cascade]
 Ref: transactions.studentId > users.id
 
 Ref: transactions.courseId > courses.id
+
+Ref: categories.parentId - categories.id [delete: Set Null]

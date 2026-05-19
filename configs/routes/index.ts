@@ -13,7 +13,8 @@ import { AuthRoute } from "./auth.route";
 import { DevRoute } from "./dev.route";
 import { ProfileRoute } from "./profile.route";
 import { UserRoute } from "./user.route";
-import { StudentLearningRoute } from "./studentLearning.route";
+import { CourseRoute } from "./course.route";
+
 
 // Configure the permission factory for the entire application.
 // This decouples the RailsRoute library from specific application middlewares.
@@ -46,7 +47,7 @@ export class Route extends RailsRoute {
     this.path("/api", ApiRoute.draw());
     this.path("/api/auth", AuthRoute.draw());
     this.path("/api/admin", AdminRoute.draw());
-    this.path("/api/student", StudentLearningRoute.draw());
+    this.path("/api/courses", CourseRoute.draw());
     this.path("/me", ProfileRoute.draw());
     this.path("/users/stats", action(AdminUserController, "stats"));
     this.path("/users", UserRoute.draw());

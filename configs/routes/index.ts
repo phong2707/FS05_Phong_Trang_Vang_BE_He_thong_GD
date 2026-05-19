@@ -40,8 +40,6 @@ RailsRoute.actionPermissionMap = {
 
 export class Route extends RailsRoute {
   public draw() {
-
-
     this.path(action(CurrentUserMiddleware));
 
     if (env.nodeEnv === "development") this.path("/dev", DevRoute.draw());
@@ -54,8 +52,7 @@ export class Route extends RailsRoute {
     this.path("/users/stats", action(AdminUserController, "stats"));
     this.path("/users", UserRoute.draw());
 
-// Home
-this.get("/", action(HomeController, "index"));
-    
+    // Home
+    this.get("/", action(HomeController, "index"));
   }
 }

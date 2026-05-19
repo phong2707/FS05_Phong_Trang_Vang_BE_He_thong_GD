@@ -5,13 +5,21 @@ import { action, RailsRoute } from "ts-rails";
 import { ApiV1AdminRoute } from "./admin";
 import { AuthRoute } from "./auth";
 import { ApiV1DevRoute } from "./dev";
-import { TeacherRoute } from "../../teacher.route";
+import { TeacherRoute } from "./teacher.route";
 import { ClassGroupRoute } from "./classGroup.route";
 
 
 import {TaskmanRoute} from "./taskman.route";
 
 import { SubjectRoute } from "./subject.route";
+
+import { QuestionRoute } from "./question.route";
+
+import { TestRoute } from "./test.route";
+
+
+import { AssignmentRoute } from "./assignment.route";
+
 
 export class ApiV1Route extends RailsRoute {
   public draw() {
@@ -38,6 +46,11 @@ this.path("/subjects", SubjectRoute.draw());
 
     this.path("/", TaskmanRoute.draw());
 
+    this.path("/", QuestionRoute.draw());
+
+    this.path("/", TestRoute.draw());
+
+    this.path("/", AssignmentRoute.draw());
     // Permission routes - action(Controller, "index") tạo instance mới mỗi request
     this.get("/permissions/me", action(MyPermissionController, "index"));
 

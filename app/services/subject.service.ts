@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import models from "@models";
 
 /**
@@ -45,6 +45,10 @@ export async function getTeacherSubjects(teacherId: string) {
 /**
  * ✅ Giáo viên xem chi tiết MỘT MÔN HỌC (CHỈ MÔN CỦA MÌNH)
  */
+
+/**
+ * ✅ Giáo viên xem chi tiết môn học (FULL LMS STRUCTURE)
+ */
 export async function getSubjectDetailByTeacher(
   subjectId: string,
   teacherId: string
@@ -52,14 +56,15 @@ export async function getSubjectDetailByTeacher(
   return models.subject.findFirst({
     where: {
       id: subjectId,
-      // ✅ FIX: Phân quyền qua bảng trung gian SubjectTeacher
       teachers: {
         some: {
-          teacherId: teacherId,
+          teacherId,
         },
       },
     },
+
     include: {
+      // ✅ Course info
       course: {
         select: {
           id: true,
@@ -69,6 +74,8 @@ export async function getSubjectDetailByTeacher(
           status: true,
         },
       },
+
+      // ✅ Class groups
       classGroups: {
         select: {
           id: true,
@@ -76,29 +83,52 @@ export async function getSubjectDetailByTeacher(
           status: true,
         },
       },
-      videos: {
-        select: {
-          id: true,
-          title: true,
-          durationSeconds: true,
+
+      // ✅ ✅ CHUẨN KIẾN TRÚC MỚI
+      chapters: {
+        orderBy: {
+          sortOrder: "asc",
         },
-        orderBy: { sortOrder: "asc" },
-      },
-      taskmen: {
-        select: {
-          id: true,
-          title: true,
-          url: true,
-          fileType: true,
-        },
-        orderBy: { sortOrder: "asc" },
-      },
-      tests: {
-        select: {
-          id: true,
-          title: true,
-          testType: true,
-          durationMinutes: true,
+
+        include: {
+          // ✅ Videos thuộc Chapter
+          videos: {
+            orderBy: {
+              sortOrder: "asc",
+            },
+          },
+
+          // ✅ Taskman thuộc Chapter
+          taskmen: {
+            where: {
+              isVisible: true,
+            },
+            orderBy: {
+              sortOrder: "asc",
+            },
+          },
+
+          // ✅ Tests thuộc Chapter
+          tests: {
+            orderBy: {
+              createdAt: "desc",
+            },
+
+            // (optional nhưng nên có)
+            include: {
+              testQuestions: {
+                include: {
+                  question: {
+                    select: {
+                      id: true,
+                      content: true,
+                      questionFormat: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     },

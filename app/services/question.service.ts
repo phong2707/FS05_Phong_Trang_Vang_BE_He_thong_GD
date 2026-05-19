@@ -105,9 +105,13 @@ export async function listQuestions(
 ) {
   return prisma.question.findMany({
     where: {
-      subjectId,
-      teacherId,
-    },
+  subjectId,
+  subject: {
+    teachers: {
+      some: { teacherId }
+    }
+  }
+},
     include: {
       answers: true,
       questionType: true,

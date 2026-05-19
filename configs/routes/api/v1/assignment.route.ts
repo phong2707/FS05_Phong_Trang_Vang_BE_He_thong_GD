@@ -12,7 +12,7 @@ export class AssignmentRoute extends RailsRoute {
 
     // ✅ teacher chấm
     this.post(
-      "/submissions/:id/grade",
+      "/assignments/:id/grade",
       action(AssignmentController, "grade")
     );
 

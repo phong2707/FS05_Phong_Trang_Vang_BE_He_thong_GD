@@ -1,44 +1,49 @@
-import models from "@models";
-import { ApplicationController } from ".";
 
+import { CourseService } from '../services/course.service';
+import { ApplicationController } from './application.controller';
+
+// Bắt buộc phải kế thừa "Controller" của ts-rails
 export class CourseController extends ApplicationController {
-  /**
-   * GET /courses/:id
-   */
-  async getCourseById() {
-    const courseId = this.req.params.id;
-
-    if (!courseId) {
-      return this.res.status(400).json({
-        success: false,
-        message: "Missing course id",
-      });
+  
+  async list() {
+    try {
+      const filters = {
+        // Truy cập thông qua this.req
+        title: this.req.query.title as string,
+        level: this.req.query.level as string,
+        price: this.req.query.price as string,
+      };
+      
+      const courses = await CourseService.getAllCourses(filters);
+      
+      // Trả về thông qua this.res
+      return this.res.status(200).json(courses);
+    } catch (error: any) {
+      return this.res.status(500).json({ message: "Lỗi server", error: error.message });
     }
+  }
 
-    const course = await models.course.findUnique({
-      where: { id: courseId },
-      include: {
-        subjects: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-          },
-        },
-      },
-    });
-
-    if (!course) {
-      return this.res.status(404).json({
-        success: false,
-        message: "Course not found",
-      });
+  async upcoming() {
+    try {
+      const courses = await CourseService.getUpcomingCourses();
+      return this.res.status(200).json(courses);
+    } catch (error: any) {
+      return this.res.status(500).json({ message: "Lỗi server", error: error.message });
     }
+  }
 
-    return this.res.json({
-      success: true,
-      data: course,
-    });
+  async detail() {
+    try {
+      // Truy cập params thông qua this.req.params
+      const id = this.req.params.id as string;
+      const course = await CourseService.getCourseDetail(id);
+      
+      if (!course) {
+        return this.res.status(404).json({ message: "Không tìm thấy khóa học" });
+      }
+      return this.res.status(200).json(course);
+    } catch (error: any) {
+      return this.res.status(500).json({ message: "Lỗi server", error: error.message });
+    }
   }
 }
-``

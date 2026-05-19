@@ -1,87 +1,54 @@
-import models from "@models";
+import models from "@models"; // Import Prisma client theo chuẩn dự án của bạn
 
-/**
- * ✅ Giáo viên xem danh sách MÔN HỌC được phân công
- */
-export async function getTeacherSubjects(teacherId: string) {
-  return models.subject.findMany({
-    where: {
-      teacherId, // ✅ CHỐT: phân công theo MÔN HỌC
-    },
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      sortOrder: true,
-      createdAt: true,
+export class CourseService {
+  static async getAllCourses(filters: { title?: string; level?: string; price?: string; category?: string }) {
+    const { title, level, price, category } = filters;
+    const whereClause: any = { status: 'PUBLISHED' };
 
-      // ✅ Lấy thông tin khóa học để hiển thị (KHÔNG phân quyền theo course)
-      course: {
-        select: {
-          id: true,
-          title: true,
-        },
+    if (title) whereClause.title = { contains: title };
+    if (level) whereClause.level = level;
+    if (price === 'free') whereClause.price = 0;
+    if (category) whereClause.category = category;
+    else if (price === 'paid') whereClause.price = { gt: 0 };
+
+    return await models.course.findMany({
+      where: whereClause,
+      select: {
+        id: true, title: true, thumbnailUrl: true, price: true, 
+        discountPrice: true, level: true, durationValue: true, 
+        durationUnit: true, startDate: true,
       },
-    },
-    orderBy: {
-      sortOrder: "asc",
-    },
-  });
-}
+      orderBy: { createdAt: 'desc' }
+    });
+  }
 
-/**
- * ✅ Giáo viên xem chi tiết MỘT MÔN HỌC
- */
-export async function getSubjectDetail(subjectId: string, teacherId: string) {
-  return models.subject.findFirst({
-    where: {
-      id: subjectId,
-      teacherId, // ✅ QUAN TRỌNG: chỉ xem được môn của chính mình
-    },
-    include: {
-      course: {
-        select: {
-          id: true,
-          title: true,
-          description: true,
-        },
+  static async getUpcomingCourses() {
+    return await models.course.findMany({
+      where: {
+        status: 'PUBLISHED',
+        startDate: { gt: new Date() }
       },
+      orderBy: { startDate: 'asc' },
+      take: 6,
+      select: {
+        id: true, title: true, thumbnailUrl: true, price: true, 
+        discountPrice: true, level: true, durationValue: true, 
+        durationUnit: true, startDate: true,
+      }
+    });
+  }
 
-      classGroups: {
-        select: {
-          id: true,
-          name: true,
-          status: true,
-        },
-      },
-
-      videos: {
-        select: {
-          id: true,
-          title: true,
-          durationSeconds: true,
-        },
-        orderBy: { sortOrder: "asc" },
-      },
-
-      taskmen: {
-        select: {
-          id: true,
-          title: true,
-          url: true,
-          fileType: true,
-        },
-        orderBy: { sortOrder: "asc" },
-      },
-
-      tests: {
-        select: {
-          id: true,
-          title: true,
-          testType: true,
-          durationMinutes: true,
-        },
-      },
-    },
-  });
+  static async getCourseDetail(id: string) {
+    return await models.course.findUnique({
+      where: { id },
+      include: {
+        subjects: {
+          orderBy: { sortOrder: 'asc' },
+          include: {
+            chapters: { orderBy: { sortOrder: 'asc' } }
+          }
+        }
+      }
+    });
+  }
 }

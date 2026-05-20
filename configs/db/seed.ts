@@ -102,7 +102,7 @@ async function seed() {
     });
 
     const teachers = await Promise.all([
-      models.user.create({ data: { firstName: "Trần Thế", lastName: "Phong", email: "phong.tran@iviettech.vn", status: UserStatus.ACTIVE, gender: "MALE", avatarUrl: "https://i.pravatar.cc/150?u=phong", passwords: { create: { password: hashedPassword } }, roles: { create: { roleId: roleTeacher.id } }, wallet: { create: { balance: 15000000 } } } }),
+      models.user.create({ data: { firstName: "Trần Thế", lastName: "Phong", email: "phongnvpd10379@gmail.com", status: UserStatus.ACTIVE, gender: "MALE", avatarUrl: "https://i.pravatar.cc/150?u=phong", passwords: { create: { password: hashedPassword } }, roles: { create: { roleId: roleTeacher.id } }, wallet: { create: { balance: 15000000 } } } }),
       models.user.create({ data: { firstName: "Lê Minh", lastName: "Tuấn", email: "tuan.le@iviettech.vn", status: UserStatus.ACTIVE, gender: "MALE", avatarUrl: "https://i.pravatar.cc/150?u=tuan", passwords: { create: { password: hashedPassword } }, roles: { create: { roleId: roleTeacher.id } }, wallet: { create: { balance: 25000000 } } } }),
       models.user.create({ data: { firstName: "Nguyễn Thu", lastName: "Hương", email: "huong.nguyen@iviettech.vn", status: UserStatus.ACTIVE, gender: "FEMALE", avatarUrl: "https://i.pravatar.cc/150?u=huong", passwords: { create: { password: hashedPassword } }, roles: { create: { roleId: roleTeacher.id } }, wallet: { create: { balance: 18000000 } } } }),
     ]);
@@ -187,19 +187,77 @@ async function seed() {
     // 6. TẠO MÔN HỌC & CHƯƠNG HỌC
     // ==========================================
     const subFrontend = await models.subject.create({
-      data: { 
+      data: {
         courseId: courseWeb.id, name: "Frontend với ReactJS & TypeScript", sortOrder: 1,
         isSequential: true, allowReview: true, // Áp dụng schema mới
-        teachers: { create: { teacherId: teachers[0].id, type: "MAIN" } }
+        teachers: {
+          create: [
+            { teacherId: teachers[0].id, type: "MAIN" },
+            { teacherId: teachers[2].id, type: "TA" },
+          ],
+        },
       }
     });
 
     const subBackend = await models.subject.create({
-      data: { 
+      data: {
         courseId: courseWeb.id, name: "Backend Core với Node.js & Prisma", sortOrder: 2,
         isSequential: true, allowReview: false, // Thi xong không cho xem lại
-        teachers: { create: { teacherId: teachers[1].id, type: "MAIN" } }
+        teachers: {
+          create: [
+            { teacherId: teachers[1].id, type: "MAIN" },
+            { teacherId: teachers[0].id, type: "TA" },
+          ],
+        },
       }
+    });
+
+    const subDatabase = await models.subject.create({
+      data: {
+        courseId: courseWeb.id,
+        name: "Database Design với PostgreSQL",
+        sortOrder: 3,
+        isSequential: false,
+        allowReview: true,
+        teachers: {
+          create: [
+            { teacherId: teachers[1].id, type: "MAIN" },
+            { teacherId: teachers[2].id, type: "TA" },
+          ],
+        },
+      },
+    });
+
+    const subAutomation = await models.subject.create({
+      data: {
+        courseId: courseQA.id,
+        name: "API Automation với Postman/Newman",
+        sortOrder: 1,
+        isSequential: false,
+        allowReview: true,
+        teachers: {
+          create: [
+            { teacherId: teachers[2].id, type: "MAIN" },
+            { teacherId: teachers[1].id, type: "TA" },
+          ],
+        },
+      },
+    });
+
+    const subUixFoundation = await models.subject.create({
+      data: {
+        courseId: courseUIUX.id,
+        name: "UI Foundation & Design System",
+        sortOrder: 1,
+        isSequential: false,
+        allowReview: true,
+        teachers: {
+          create: [
+            { teacherId: teachers[2].id, type: "MAIN" },
+            { teacherId: teachers[0].id, type: "TA" },
+          ],
+        },
+      },
     });
 
     const chapFE1 = await models.chapter.create({ data: { subjectId: subFrontend.id, title: "Chương 1: Khởi động với React & Vite", sortOrder: 1 } });
@@ -259,12 +317,32 @@ async function seed() {
     // ==========================================
     // 9. LỚP HỌC, GHI DANH & TIẾN ĐỘ HỌC TẬP
     // ==========================================
-    const classFS = await models.classGroup.create({ 
-      data: { subjectId: subFrontend.id, name: "Lớp Fullstack K45 - Tối 3-5-7", startDate: new Date("2026-06-05"), endDate: new Date("2026-12-05"), maxStudents: 35, roomLink: "https://zoom.us/j/123456789" } 
+    const classFS = await models.classGroup.create({
+      data: { subjectId: subFrontend.id, name: "Lớp Fullstack K45 - Tối 3-5-7", startDate: new Date("2026-06-05"), endDate: new Date("2026-12-05"), maxStudents: 35, roomLink: "https://zoom.us/j/123456789" }
+    });
+
+    const classBE = await models.classGroup.create({
+      data: { subjectId: subBackend.id, name: "Lớp Backend K45 - Tối 2-4-6", startDate: new Date("2026-06-07"), endDate: new Date("2026-12-07"), maxStudents: 30, roomLink: "https://meet.google.com/backend-k45" }
+    });
+
+    const classDB = await models.classGroup.create({
+      data: { subjectId: subDatabase.id, name: "Lớp Database K45 - Cuối tuần", startDate: new Date("2026-06-08"), endDate: new Date("2026-12-08"), maxStudents: 28, roomLink: "https://zoom.us/j/987654321" }
+    });
+
+    const classQA = await models.classGroup.create({
+      data: { subjectId: subAutomation.id, name: "Lớp QA Automation K46 - Tối 3-5", startDate: new Date("2026-07-01"), endDate: new Date("2026-11-30"), maxStudents: 32, roomLink: "https://meet.google.com/qa-auto-k46" }
+    });
+
+    const classUIUX = await models.classGroup.create({
+      data: { subjectId: subUixFoundation.id, name: "Lớp UIUX K20 - Tối 2-4", startDate: new Date("2026-07-03"), endDate: new Date("2026-10-30"), maxStudents: 25, roomLink: "https://zoom.us/j/uiuxk20" }
     });
 
     await models.classGroupUser.create({ data: { userId: specificStudent.id, classGroupId: classFS.id, role: "STUDENT" } });
     await models.classGroupUser.create({ data: { userId: students[0].id, classGroupId: classFS.id, role: "STUDENT" } });
+    await models.classGroupUser.create({ data: { userId: students[1].id, classGroupId: classBE.id, role: "STUDENT" } });
+    await models.classGroupUser.create({ data: { userId: students[2].id, classGroupId: classDB.id, role: "STUDENT" } });
+    await models.classGroupUser.create({ data: { userId: students[3].id, classGroupId: classQA.id, role: "STUDENT" } });
+    await models.classGroupUser.create({ data: { userId: students[4].id, classGroupId: classUIUX.id, role: "STUDENT" } });
 
     // Ghi danh toàn khóa
     const enrollCyleish = await models.courseEnrollment.create({ data: { userId: specificStudent.id, courseId: courseWeb.id, status: "ACTIVE", progress: 35.5 } });

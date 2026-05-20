@@ -64,6 +64,8 @@ model User {
   gradedSubmissions Submission[]       @relation("Grader")
   attendances       Attendance[]
   learningProgress  LearningProgress[]
+  gradedByMe SubjectGrade[] @relation("GradeUpdatedBy")
+  subjectGrades SubjectGrade[]
 
   // --- Quan hệ Tương tác & Tài chính ---
   forumPosts       ForumPost[]
@@ -359,6 +361,8 @@ model Subject {
   forums      Forum[]
   tests       Test[]
 
+  grades SubjectGrade[]
+
   @@map("subjects")
 }
 
@@ -420,6 +424,7 @@ model ClassGroup {
   groupUsers  ClassGroupUser[]
   submissions Submission[]
   schedules   Schedule[]
+  subjectGrades SubjectGrade[]
 
   @@map("class_groups")
 }
@@ -636,6 +641,37 @@ model UserQuestionAnswer {
   answer     QuestionAnswer? @relation(fields: [answerId], references: [id], onDelete: SetNull)
 
   @@map("user_question_answers")
+}
+
+// 📌 BẢNG: SubjectGrade (Bảng điểm tổng kết môn học)
+// Tác dụng: Lưu trữ bảng điểm của từng sinh viên trong một môn học/lớp học.
+// Logic: Teacher sẽ ghi điểm (DRAFT), sau khi PUBLISHED thì Student mới đọc được.
+model SubjectGrade {
+  id            String    @id @default(uuid())
+  subjectId     String    @map("subject_id")
+  classGroupId  String    @map("class_group_id")
+  studentId     String    @map("student_id")
+  
+  assignmentScore Float?  @map("assignment_score") // Điểm bài tập
+  midtermScore    Float?  @map("midterm_score")    // Điểm giữa kỳ
+  finalScore      Float?  @map("final_score")      // Điểm cuối kỳ
+  totalScore      Float?  @map("total_score")      // Điểm tổng kết
+  
+  status          String  @default("DRAFT")        // DRAFT, PUBLISHED
+  updatedById     String? @map("updated_by_id")    // Giáo viên/Admin cập nhật
+  publishedAt     DateTime? @map("published_at")
+
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Quan hệ
+  subject    Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  student    User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  updatedBy  User?      @relation("GradeUpdatedBy", fields: [updatedById], references: [id])
+
+  @@unique([subjectId, studentId]) // Một sinh viên chỉ có 1 bảng điểm trong 1 môn
+  @@map("subject_grades")
 }
 
 // ==========================================

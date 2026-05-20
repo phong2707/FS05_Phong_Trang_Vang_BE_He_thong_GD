@@ -13,6 +13,10 @@ async function seed() {
     await models.certificate.deleteMany({});
     await models.courseRule.deleteMany({});
     await models.attendance.deleteMany({});
+    
+    // ✅ Dọn dẹp Bảng điểm môn học (SubjectGrade - bảng mới)
+    await models.subjectGrade.deleteMany({}); 
+
     await models.userQuestionAnswer.deleteMany({});
     await models.submission.deleteMany({});
     await models.testQuestion.deleteMany({});
@@ -300,6 +304,22 @@ async function seed() {
         testId: testSubject.id, studentId: specificStudent.id, classGroupId: classFS.id, status: "PENDING", finalScoreStatus: "MANUAL_PENDING",
         studentFileUrl: "https://aws.s3.com/bucket/cyleish_final_project.zip",
         userAnswers: { create: [ { questionId: q2.id, essayAnswer: "Em nộp đồ án web bán hàng ạ.", isCorrect: false } ]}
+      }
+    });
+
+    // ✅ Thêm mới: Tạo Bảng điểm Môn học (SubjectGrade) cho sinh viên
+    await models.subjectGrade.create({
+      data: {
+        subjectId: subFrontend.id,
+        classGroupId: classFS.id,
+        studentId: specificStudent.id,
+        assignmentScore: 8.5,
+        midtermScore: 9.0,
+        finalScore: 9.5,
+        totalScore: 9.0,
+        status: "PUBLISHED",
+        updatedById: teachers[0].id,
+        publishedAt: new Date(),
       }
     });
 

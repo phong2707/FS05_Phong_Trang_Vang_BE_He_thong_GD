@@ -20,6 +20,45 @@ export async function getTeacherSubjects(teacherId: string) {
       description: true,
       sortOrder: true,
       createdAt: true,
+      teachers: {
+        where: {
+          teacherId,
+        },
+        select: {
+          type: true,
+        },
+      },
+      classGroups: {
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          startDate: true,
+          endDate: true,
+          groupUsers: {
+            where: {
+              role: "STUDENT",
+            },
+            select: {
+              userId: true,
+            },
+          },
+          schedules: {
+            orderBy: {
+              startAt: "asc",
+            },
+            take: 1,
+            select: {
+              startAt: true,
+              endAt: true,
+              dayOfWeek: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
       course: {
         select: {
           id: true,

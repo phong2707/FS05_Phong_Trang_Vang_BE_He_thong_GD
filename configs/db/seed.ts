@@ -262,6 +262,11 @@ async function seed() {
 
     const chapFE1 = await models.chapter.create({ data: { subjectId: subFrontend.id, title: "Chương 1: Khởi động với React & Vite", sortOrder: 1 } });
     const chapFE2 = await models.chapter.create({ data: { subjectId: subFrontend.id, title: "Chương 2: React Hooks & State Management", sortOrder: 2, prerequisiteId: chapFE1.id, isLocked: true } });
+
+    const chapBE1 = await models.chapter.create({ data: { subjectId: subBackend.id, title: "Chương 1: REST API với Express", sortOrder: 1 } });
+    const chapDB1 = await models.chapter.create({ data: { subjectId: subDatabase.id, title: "Chương 1: Chuẩn hóa dữ liệu & ERD", sortOrder: 1 } });
+    const chapQA1 = await models.chapter.create({ data: { subjectId: subAutomation.id, title: "Chương 1: API Testing với Postman", sortOrder: 1 } });
+    const chapUI1 = await models.chapter.create({ data: { subjectId: subUixFoundation.id, title: "Chương 1: Typography, Color & Layout", sortOrder: 1 } });
     
     // ==========================================
     // 7. BÀI GIẢNG VIDEO & BÀI TẬP (TASKMAN)
@@ -271,6 +276,18 @@ async function seed() {
     const v1 = await models.video.create({ data: { chapterId: chapFE1.id, title: "Bài 1: Tại sao lại là React?", videoUrl: "https://www.youtube.com/watch?v=Tn6-PIqc4UM", durationSeconds: 1200, provider: "YOUTUBE", sortOrder: 1 } });
     const v2 = await models.video.create({ data: { chapterId: chapFE1.id, title: "Bài 2: Render & JSX dưới góc nhìn sâu", videoUrl: "https://www.youtube.com/watch?v=SqcY0GlETPk", durationSeconds: 2400, provider: "YOUTUBE", sortOrder: 2 } });
     const t1 = await models.taskman.create({ data: { chapterId: chapFE1.id, title: "Thực hành: Build giao diện Profile Card", fileType: "PDF", url: "https://iviettech.vn/docs/task1.pdf", sortOrder: 3 } });
+
+    const vBE1 = await models.video.create({ data: { chapterId: chapBE1.id, title: "Bài 1: Thiết kế RESTful API chuẩn", videoUrl: "https://www.youtube.com/watch?v=l8WPWK9mS5M", durationSeconds: 1800, provider: "YOUTUBE", sortOrder: 1 } });
+    const tBE1 = await models.taskman.create({ data: { chapterId: chapBE1.id, title: "Lab: Xây dựng CRUD Users bằng Express + Prisma", fileType: "PDF", url: "https://iviettech.vn/docs/backend-crud-users.pdf", sortOrder: 2 } });
+
+    const vDB1 = await models.video.create({ data: { chapterId: chapDB1.id, title: "Bài 1: Chuẩn hóa CSDL từ 1NF đến 3NF", videoUrl: "https://www.youtube.com/watch?v=UrYLYV7WSHM", durationSeconds: 1600, provider: "YOUTUBE", sortOrder: 1 } });
+    const tDB1 = await models.taskman.create({ data: { chapterId: chapDB1.id, title: "Bài tập: Thiết kế ERD cho hệ thống LMS", fileType: "PDF", url: "https://iviettech.vn/docs/db-erd-lms.pdf", sortOrder: 2 } });
+
+    const vQA1 = await models.video.create({ data: { chapterId: chapQA1.id, title: "Bài 1: Viết test API với Postman Collection", videoUrl: "https://www.youtube.com/watch?v=VywxIQ2ZXw4", durationSeconds: 1400, provider: "YOUTUBE", sortOrder: 1 } });
+    const tQA1 = await models.taskman.create({ data: { chapterId: chapQA1.id, title: "Assignment: Tạo bộ test Login/Register API", fileType: "PDF", url: "https://iviettech.vn/docs/qa-api-login-register.pdf", sortOrder: 2 } });
+
+    const vUI1 = await models.video.create({ data: { chapterId: chapUI1.id, title: "Bài 1: Xây dựng Design System cơ bản", videoUrl: "https://www.youtube.com/watch?v=c9Wg6Cb_YlU", durationSeconds: 1500, provider: "YOUTUBE", sortOrder: 1 } });
+    const tUI1 = await models.taskman.create({ data: { chapterId: chapUI1.id, title: "Thực hành: Thiết kế Landing Page trong Figma", fileType: "PDF", url: "https://iviettech.vn/docs/uiux-landing-page-figma.pdf", sortOrder: 2 } });
 
     // ==========================================
     // 8. HỆ THỐNG ĐỀ THI ĐA CẤP (MULTI-SCOPE TESTS)
@@ -343,10 +360,19 @@ async function seed() {
     await models.classGroupUser.create({ data: { userId: students[2].id, classGroupId: classDB.id, role: "STUDENT" } });
     await models.classGroupUser.create({ data: { userId: students[3].id, classGroupId: classQA.id, role: "STUDENT" } });
     await models.classGroupUser.create({ data: { userId: students[4].id, classGroupId: classUIUX.id, role: "STUDENT" } });
+    await models.classGroupUser.create({ data: { userId: students[5].id, classGroupId: classBE.id, role: "STUDENT" } });
+    await models.classGroupUser.create({ data: { userId: students[6].id, classGroupId: classQA.id, role: "STUDENT" } });
+    await models.classGroupUser.create({ data: { userId: students[7].id, classGroupId: classUIUX.id, role: "STUDENT" } });
 
     // Ghi danh toàn khóa
     const enrollCyleish = await models.courseEnrollment.create({ data: { userId: specificStudent.id, courseId: courseWeb.id, status: "ACTIVE", progress: 35.5 } });
     const enrollStu0 = await models.courseEnrollment.create({ data: { userId: students[0].id, courseId: courseWeb.id, status: "ACTIVE", progress: 90.0 } });
+    const enrollStu1 = await models.courseEnrollment.create({ data: { userId: students[1].id, courseId: courseWeb.id, status: "ACTIVE", progress: 42.0 } });
+    const enrollStu2 = await models.courseEnrollment.create({ data: { userId: students[2].id, courseId: courseWeb.id, status: "ACTIVE", progress: 66.5 } });
+    const enrollStu3QA = await models.courseEnrollment.create({ data: { userId: students[3].id, courseId: courseQA.id, status: "ACTIVE", progress: 58.0 } });
+    const enrollStu6QA = await models.courseEnrollment.create({ data: { userId: students[6].id, courseId: courseQA.id, status: "ACTIVE", progress: 21.5 } });
+    const enrollStu4UIUX = await models.courseEnrollment.create({ data: { userId: students[4].id, courseId: courseUIUX.id, status: "ACTIVE", progress: 73.0 } });
+    const enrollStu7UIUX = await models.courseEnrollment.create({ data: { userId: students[7].id, courseId: courseUIUX.id, status: "ACTIVE", progress: 44.0 } });
 
     // Log tiến độ xem Video
     await models.learningProgress.createMany({
@@ -354,6 +380,12 @@ async function seed() {
         { enrollmentId: enrollCyleish.id, studentId: specificStudent.id, videoId: v1.id, status: "COMPLETED", watchTimeSeconds: 1200, completedAt: new Date() },
         { enrollmentId: enrollCyleish.id, studentId: specificStudent.id, videoId: v2.id, status: "IN_PROGRESS", watchTimeSeconds: 500 },
         { enrollmentId: enrollStu0.id, studentId: students[0].id, videoId: v1.id, status: "COMPLETED", watchTimeSeconds: 1200, completedAt: new Date() },
+        { enrollmentId: enrollStu1.id, studentId: students[1].id, videoId: vBE1.id, status: "IN_PROGRESS", watchTimeSeconds: 780 },
+        { enrollmentId: enrollStu2.id, studentId: students[2].id, videoId: vDB1.id, status: "COMPLETED", watchTimeSeconds: 1600, completedAt: new Date() },
+        { enrollmentId: enrollStu3QA.id, studentId: students[3].id, videoId: vQA1.id, status: "IN_PROGRESS", watchTimeSeconds: 630 },
+        { enrollmentId: enrollStu6QA.id, studentId: students[6].id, videoId: vQA1.id, status: "NOT_STARTED", watchTimeSeconds: 0 },
+        { enrollmentId: enrollStu4UIUX.id, studentId: students[4].id, videoId: vUI1.id, status: "COMPLETED", watchTimeSeconds: 1500, completedAt: new Date() },
+        { enrollmentId: enrollStu7UIUX.id, studentId: students[7].id, videoId: vUI1.id, status: "IN_PROGRESS", watchTimeSeconds: 540 },
       ]
     });
 
@@ -399,6 +431,71 @@ async function seed() {
         updatedById: teachers[0].id,
         publishedAt: new Date(),
       }
+    });
+
+    await models.subjectGrade.createMany({
+      data: [
+        {
+          subjectId: subFrontend.id,
+          classGroupId: classFS.id,
+          studentId: students[0].id,
+          assignmentScore: 9.0,
+          midtermScore: 8.5,
+          finalScore: 9.0,
+          totalScore: 8.8,
+          status: "PUBLISHED",
+          updatedById: teachers[0].id,
+          publishedAt: new Date(),
+        },
+        {
+          subjectId: subBackend.id,
+          classGroupId: classBE.id,
+          studentId: students[1].id,
+          assignmentScore: 7.5,
+          midtermScore: 8.0,
+          finalScore: 8.0,
+          totalScore: 7.8,
+          status: "PUBLISHED",
+          updatedById: teachers[1].id,
+          publishedAt: new Date(),
+        },
+        {
+          subjectId: subDatabase.id,
+          classGroupId: classDB.id,
+          studentId: students[2].id,
+          assignmentScore: 8.0,
+          midtermScore: 8.5,
+          finalScore: 8.0,
+          totalScore: 8.2,
+          status: "PUBLISHED",
+          updatedById: teachers[1].id,
+          publishedAt: new Date(),
+        },
+        {
+          subjectId: subAutomation.id,
+          classGroupId: classQA.id,
+          studentId: students[3].id,
+          assignmentScore: 8.5,
+          midtermScore: 7.5,
+          finalScore: 8.0,
+          totalScore: 8.0,
+          status: "PUBLISHED",
+          updatedById: teachers[2].id,
+          publishedAt: new Date(),
+        },
+        {
+          subjectId: subUixFoundation.id,
+          classGroupId: classUIUX.id,
+          studentId: students[4].id,
+          assignmentScore: 9.0,
+          midtermScore: 8.5,
+          finalScore: 9.0,
+          totalScore: 8.8,
+          status: "PUBLISHED",
+          updatedById: teachers[2].id,
+          publishedAt: new Date(),
+        },
+      ]
     });
 
     // Thanh toán

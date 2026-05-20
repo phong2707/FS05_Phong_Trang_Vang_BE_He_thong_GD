@@ -41,63 +41,129 @@ async function seedDevTeaching() {
   });
 
   /* =======================
- * 3. COURSE (RAW INSERT – FIX updated_at)
- * ======================= */
-const now = new Date().toISOString();
-
-await models.$executeRawUnsafe(`
-  INSERT INTO courses (
-    id,
-    title,
-    description,
-    price,
-    admin_id,
-    created_at,
-    updated_at
-  )
-  VALUES (
-    lower(hex(randomblob(16))),
-    'Fullstack Web Development',
-    'Khoá học dùng để làm đồ án',
-    0,
-    '${teacher.id}',
-    '${now}',
-    '${now}'
-  )
-`);
-
-/* Lấy lại course vừa tạo */
-const course = await models.course.findFirst({
-  where: { title: "Fullstack Web Development" },
-});
-
-if (!course) {
-  throw new Error("❌ Course not found after raw insert");
-}
-
+   * 3. COURSE
+   * ======================= */
+  const course = await models.course.upsert({
+    where: { id: "dev-course-fullstack-web" },
+    update: {
+      title: "Fullstack Web Development",
+      description: "Khoá học dùng để làm đồ án",
+      price: 0,
+      status: "PUBLISHED",
+      adminId: teacher.id,
+      level: "BEGINNER",
+      language: "VI",
+    },
+    create: {
+      id: "dev-course-fullstack-web",
+      title: "Fullstack Web Development",
+      description: "Khoá học dùng để làm đồ án",
+      price: 0,
+      status: "PUBLISHED",
+      adminId: teacher.id,
+      level: "BEGINNER",
+      language: "VI",
+      startDate: new Date("2026-06-01T00:00:00.000Z"),
+    },
+  });
 
   /* =======================
-   * 4. ASSIGN TEACHER → COURSE
+   * 3.1 SUBJECTS (Frontend + ReactJS)
    * ======================= */
-  await models.courseTeacher.upsert({
+  const frontendSubject = await models.subject.upsert({
+    where: { id: "dev-subject-frontend-reactjs" },
+    update: {
+      courseId: course.id,
+      name: "Frontend với ReactJS",
+      description: "Môn Frontend tập trung ReactJS, Vite và TypeScript",
+      sortOrder: 1,
+      isSequential: true,
+      allowReview: true,
+    },
+    create: {
+      id: "dev-subject-frontend-reactjs",
+      courseId: course.id,
+      name: "Frontend với ReactJS",
+      description: "Môn Frontend tập trung ReactJS, Vite và TypeScript",
+      sortOrder: 1,
+      isSequential: true,
+      allowReview: true,
+    },
+  });
+
+  await models.subjectTeacher.upsert({
     where: {
-      courseId_teacherId: {
-        courseId: course.id,
+      subjectId_teacherId: {
+        subjectId: frontendSubject.id,
         teacherId: teacher.id,
       },
     },
-    update: {},
+    update: { type: "MAIN" },
     create: {
-      courseId: course.id,
+      subjectId: frontendSubject.id,
       teacherId: teacher.id,
-      role: "MAIN_TEACHER",
+      type: "MAIN",
     },
   });
+
+  /* =======================
+   * 3.2 CLASS GROUP + SCHEDULE (để UI không còn "Chưa có lớp / Chưa cập nhật")
+   * ======================= */
+  const classGroup = await models.classGroup.upsert({
+    where: { id: "dev-class-frontend-reactjs-k1" },
+    update: {
+      subjectId: frontendSubject.id,
+      name: "Lớp Frontend ReactJS K1",
+      status: "ACTIVE",
+      startDate: new Date("2026-06-05T00:00:00.000Z"),
+      endDate: new Date("2026-12-05T00:00:00.000Z"),
+      maxStudents: 35,
+      roomLink: "https://meet.google.com/frontend-reactjs-k1",
+    },
+    create: {
+      id: "dev-class-frontend-reactjs-k1",
+      subjectId: frontendSubject.id,
+      name: "Lớp Frontend ReactJS K1",
+      status: "ACTIVE",
+      startDate: new Date("2026-06-05T00:00:00.000Z"),
+      endDate: new Date("2026-12-05T00:00:00.000Z"),
+      maxStudents: 35,
+      roomLink: "https://meet.google.com/frontend-reactjs-k1",
+    },
+  });
+
+  await models.schedule.upsert({
+    where: { id: "dev-schedule-frontend-reactjs-01" },
+    update: {
+      classGroupId: classGroup.id,
+      teacherId: teacher.id,
+      title: "Buổi 1: ReactJS Fundamentals",
+      description: "Giới thiệu React component, props, state",
+      startAt: new Date("2026-06-05T11:30:00.000Z"),
+      endAt: new Date("2026-06-05T14:00:00.000Z"),
+      dayOfWeek: 5,
+      roomLink: "https://meet.google.com/frontend-reactjs-k1",
+    },
+    create: {
+      id: "dev-schedule-frontend-reactjs-01",
+      classGroupId: classGroup.id,
+      teacherId: teacher.id,
+      title: "Buổi 1: ReactJS Fundamentals",
+      description: "Giới thiệu React component, props, state",
+      startAt: new Date("2026-06-05T11:30:00.000Z"),
+      endAt: new Date("2026-06-05T14:00:00.000Z"),
+      dayOfWeek: 5,
+      roomLink: "https://meet.google.com/frontend-reactjs-k1",
+    },
+  });
+
 
   console.log("✅ Seed DEV Teaching OK");
   console.log({
     teacherId: teacher.id,
     courseId: course.id,
+    subjectId: frontendSubject.id,
+    classGroupId: classGroup.id,
   });
 }
 

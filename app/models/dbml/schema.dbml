@@ -40,6 +40,8 @@ Table users {
   gradedSubmissions submissions [not null]
   attendances attendances [not null]
   learningProgress learning_progress [not null]
+  gradedByMe subject_grades [not null]
+  subjectGrades subject_grades [not null]
   forumPosts forum_posts [not null]
   sentMessages messages [not null]
   receivedMessages messages [not null]
@@ -265,6 +267,7 @@ Table subjects {
   questions questions [not null]
   forums forums [not null]
   tests tests [not null]
+  grades subject_grades [not null]
 }
 
 Table subject_teachers {
@@ -310,6 +313,7 @@ Table class_groups {
   groupUsers class_group_users [not null]
   submissions submissions [not null]
   schedules schedules [not null]
+  subjectGrades subject_grades [not null]
 }
 
 Table class_group_users {
@@ -467,6 +471,30 @@ Table user_question_answers {
   submission submissions [not null]
   question questions [not null]
   answer question_answers
+}
+
+Table subject_grades {
+  id String [pk]
+  subjectId String [not null]
+  classGroupId String [not null]
+  studentId String [not null]
+  assignmentScore Float
+  midtermScore Float
+  finalScore Float
+  totalScore Float
+  status String [not null, default: 'DRAFT']
+  updatedById String
+  publishedAt DateTime
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  subject subjects [not null]
+  classGroup class_groups [not null]
+  student users [not null]
+  updatedBy users
+
+  indexes {
+    (subjectId, studentId) [unique]
+  }
 }
 
 Table schedules {
@@ -709,6 +737,14 @@ Ref: user_question_answers.submissionId > submissions.id [delete: Cascade]
 Ref: user_question_answers.questionId > questions.id [delete: Cascade]
 
 Ref: user_question_answers.answerId > question_answers.id [delete: Set Null]
+
+Ref: subject_grades.subjectId > subjects.id [delete: Cascade]
+
+Ref: subject_grades.classGroupId > class_groups.id [delete: Cascade]
+
+Ref: subject_grades.studentId > users.id [delete: Cascade]
+
+Ref: subject_grades.updatedById > users.id [delete: Cascade]
 
 Ref: schedules.classGroupId > class_groups.id [delete: Cascade]
 

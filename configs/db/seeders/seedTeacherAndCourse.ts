@@ -31,21 +31,40 @@ if (!course) {
   });
 }
 
-  // 3. Gán giáo viên vào khoá học
-  await models.courseTeacher.upsert({
-    where: {
-      courseId_teacherId: {
-        courseId: course.id,
-        teacherId: teacher.id,
-      },
-    },
-    update: {},
-    create: {
+  // 3. Tạo môn học thuộc khoá
+  const subject = await models.subject.upsert({
+    where: { id: "seed-subject-web-basic-01" },
+    update: {
+      name: "Môn Web cơ bản",
       courseId: course.id,
-      teacherId: teacher.id,
-      role: "MAIN_TEACHER",
+      sortOrder: 1,
+    },
+    create: {
+      id: "seed-subject-web-basic-01",
+      name: "Môn Web cơ bản",
+      description: "Môn học nền tảng cho khoá Lập trình Web cơ bản",
+      courseId: course.id,
+      sortOrder: 1,
     },
   });
 
-  console.log("✅ Teacher & course seeded");
+  // 4. Gán giáo viên vào môn học (schema hiện tại dùng SubjectTeacher)
+  await models.subjectTeacher.upsert({
+    where: {
+      subjectId_teacherId: {
+        subjectId: subject.id,
+        teacherId: teacher.id,
+      },
+    },
+    update: {
+      type: "MAIN",
+    },
+    create: {
+      subjectId: subject.id,
+      teacherId: teacher.id,
+      type: "MAIN",
+    },
+  });
+
+  console.log("✅ Teacher, course & subject assignment seeded");
 }

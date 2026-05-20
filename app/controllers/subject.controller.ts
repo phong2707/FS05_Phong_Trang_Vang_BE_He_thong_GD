@@ -1,7 +1,25 @@
 import { ApplicationController } from ".";
-import { getSubjectDetailByTeacher } from "@services/subject.service";
+import {
+  getSubjectDetailByTeacher,
+  getTeacherSubjects,
+} from "@services/subject.service";
 
 export class SubjectController extends ApplicationController {
+  /**
+   * ✅ GET /api/v1/subjects
+   * Danh sách môn học được phân công cho giáo viên hiện tại
+   */
+  async index() {
+    if (!this.requireLogin()) return;
+
+    const subjects = await getTeacherSubjects(this.currentUser!.id);
+
+    return this.res.json({
+      success: true,
+      data: subjects,
+    });
+  }
+
   /**
    * ✅ GET /api/v1/subjects/:id
    * Chỉ giáo viên được phân công mới xem được

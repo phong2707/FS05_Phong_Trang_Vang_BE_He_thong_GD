@@ -1,5 +1,6 @@
 import { ApplicationController } from ".";
 import * as TestService from "@services/test.service";
+import * as TestGeneratorService from "@services/test-generator.service";
 
 export class TestController extends ApplicationController {
 
@@ -95,4 +96,90 @@ export class TestController extends ApplicationController {
       data: graded,
     });
   }
+
+  async generateTest() {
+  if (!this.requireLogin()) return;
+
+  try {
+    const data = await TestGeneratorService.generateTestAutomatically(
+      this.req.body
+    );
+
+    return this.res.json({
+      success: true,
+      data,
+    });
+
+  } catch (e: any) {
+    return this.res.status(400).json({
+      success: false,
+      message: e.message,
+    });
+  }
+}
+
+
+async startTest() {
+  if (!this.requireLogin()) return;
+
+  const { testId } = this.req.body;
+
+  
+let finalTestId = testId;
+
+  // ✅ RANDOM MODE
+  if (!testId) {
+    const tempTest = await TestService.createTempTest(
+      this.req.body
+    );
+    finalTestId = tempTest.id;
+  }
+
+
+  // ✅ tạo session
+  const session = await TestService.createExamSession(
+    this.currentUser!.id,
+    finalTestId
+  );
+
+  // ✅ tạo snapshot
+  const snapshot = await TestService.getOrCreateSnapshot(
+    this.currentUser!.id,
+    {
+      
+testId: finalTestId,
+      generatorInput: this.req.body,
+
+    }
+  );
+
+  return this.res.json({
+    success: true,
+    data: {
+      testId: finalTestId,
+      sessionToken: session.token,
+      questions: snapshot,
+    },
+  });
+}
+
+async reportCheat() {
+  if (!this.requireLogin()) return;
+
+  const { testId, type } = this.req.body;
+
+  await TestService.logCheat(this.currentUser!.id, testId, type);
+
+  return this.res.json({ success: true });
+}
+
+async leaderboard() {
+  if (!this.requireLogin()) return;
+
+  const { id } = this.req.params;
+
+  const data = await TestService.getLeaderboard(id);
+
+  return this.res.json({ success: true, data });
+}
 }

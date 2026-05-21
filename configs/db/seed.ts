@@ -292,29 +292,51 @@ async function seed() {
     // ==========================================
     // 8. HỆ THỐNG ĐỀ THI ĐA CẤP (MULTI-SCOPE TESTS)
     // ==========================================
-    console.log("📝 Đang tạo Ngân hàng câu hỏi & Bài thi Đa cấp độ...");
     
-    const typeSingle = await models.questionType.create({ data: { name: "Trắc nghiệm một đáp án" } });
-    const typeEssay = await models.questionType.create({ data: { name: "Tự luận / Tải File" } });
+console.log("📝 Đang tạo Ngân hàng câu hỏi & Bài thi Đa cấp độ...");
 
-    const q1 = await models.question.create({
-      data: {
-        subjectId: subFrontend.id, teacherId: teachers[0].id, typeId: typeSingle.id, content: "Hook nào dùng để call API ngay khi Component vừa mount?", explanation: "useEffect với dependency array rỗng [] sẽ chạy 1 lần sau khi render.",
-        answers: { create: [
-          { answerText: "useState", isCorrect: false, orderIndex: 1 },
-          { answerText: "useEffect", isCorrect: true, orderIndex: 2 },
-          { answerText: "useContext", isCorrect: false, orderIndex: 3 },
-        ]}
-      }
-    });
+const typeSingle = await models.questionType.create({ data: { name: "Trắc nghiệm một đáp án" } });
+const typeEssay = await models.questionType.create({ data: { name: "Tự luận / Tải File" } });
 
-    const q2 = await models.question.create({
-      data: {
-        subjectId: subFrontend.id, teacherId: teachers[0].id, typeId: typeEssay.id, questionFormat: "ESSAY",
-        content: "Hãy upload file nén (ZIP) chứa mã nguồn Mini Project Frontend của bạn.",
-      }
-    });
+// ✅ FIX QUESTION 1 (CHAPTER SCOPE)
+const q1 = await models.question.create({
+  data: {
+    scope: "CHAPTER", // ✅ thêm
+    chapterId: chapFE1.id, // ✅ thêm
 
+    teacherId: teachers[0].id,
+    typeId: typeSingle.id,
+
+    content: "Hook nào dùng để call API ngay khi Component vừa mount?",
+    explanation: "useEffect với dependency array rỗng [] sẽ chạy 1 lần sau khi render.",
+
+    difficulty: "EASY", // ✅ thêm
+
+    answers: {
+      create: [
+        { answerText: "useState", isCorrect: false, orderIndex: 1 },
+        { answerText: "useEffect", isCorrect: true, orderIndex: 2 },
+        { answerText: "useContext", isCorrect: false, orderIndex: 3 },
+      ]
+    }
+  }
+});
+
+// ✅ FIX QUESTION 2 (SUBJECT SCOPE)
+const q2 = await models.question.create({
+  data: {
+    scope: "SUBJECT", // ✅ thêm
+    subjectId: subFrontend.id, // ✅ giữ
+
+    teacherId: teachers[0].id,
+    typeId: typeEssay.id,
+    questionFormat: "ESSAY",
+
+    content: "Hãy upload file nén (ZIP) chứa mã nguồn Mini Project Frontend của bạn.",
+
+    difficulty: "HARD" // ✅ thêm
+  }
+});
     // 🏆 THI CẤP CHƯƠNG (QUIZ)
     const testChap1 = await models.test.create({
       data: {

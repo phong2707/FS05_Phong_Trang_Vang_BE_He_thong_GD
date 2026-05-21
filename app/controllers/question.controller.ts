@@ -23,17 +23,26 @@ export class QuestionController extends ApplicationController {
   }
 
   async list() {
-    if (!this.requireLogin()) return;
+  if (!this.requireLogin()) return;
 
-    const { subjectId } = this.req.params;
+  const normalize = (val: any) =>
+    typeof val === "string" ? val : undefined;
 
-    const data = await QuestionService.listQuestions(
+  const chapterId = normalize(this.req.query.chapterId);
+  const subjectId = normalize(this.req.query.subjectId);
+  const courseId = normalize(this.req.query.courseId);
+
+  const data = await QuestionService.listQuestions(
+    {
+      chapterId,
       subjectId,
-      this.currentUser!.id
-    );
+      courseId,
+    },
+    this.currentUser!.id
+  );
 
-    return this.res.json({ success: true, data });
-  }
+  return this.res.json({ success: true, data });
+}
 
   async update() {
     if (!this.requireLogin()) return;

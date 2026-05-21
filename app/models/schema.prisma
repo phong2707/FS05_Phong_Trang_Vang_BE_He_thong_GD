@@ -279,6 +279,8 @@ model Course {
   transactions  Transaction[]
   tests         Test[]
 
+  questions Question[]
+
   @@map("courses")
 }
 
@@ -399,6 +401,9 @@ model Chapter {
   videos    Video[]
   taskmen   Taskman[]
   tests     Test[]
+
+  questions Question[]
+
   createdAt DateTime  @default(now()) @map("created_at")
 
   @@map("chapters")
@@ -525,21 +530,43 @@ model QuestionType {
 // 📌 BẢNG: Question (Ngân hàng câu hỏi)
 // Nằm ở cấp Môn học (Subject) để có thể dùng lại cho nhiều Bài thi (Test) khác nhau.
 model Question {
-  id             String   @id @default(uuid())
-  subjectId      String   @map("subject_id")
-  teacherId      String   @map("teacher_id")
-  typeId         String   @map("type_id")
-  questionFormat String   @default("SINGLE_CHOICE") @map("question_format") // Tự luận, Trắc nghiệm
+  id String @id @default(uuid())
+
+  // ✅ MULTI SCOPE (giống Test)
+  scope String @default("CHAPTER") @map("scope") 
+  // CHAPTER | SUBJECT | COURSE
+
+  chapterId String? @map("chapter_id")
+  subjectId String? @map("subject_id")
+  courseId  String? @map("course_id")
+
+  teacherId String   @map("teacher_id")
+  typeId    String   @map("type_id")
+
+  questionFormat String   @default("SINGLE_CHOICE") @map("question_format")
   content        String
   explanation    String?
-  createdAt      DateTime @default(now()) @map("created_at")
+  difficulty     String?  @default("MEDIUM") // EASY | MEDIUM | HARD
 
-  subject       Subject              @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  teacher       User                 @relation(fields: [teacherId], references: [id])
-  questionType  QuestionType         @relation(fields: [typeId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // ✅ RELATIONS
+  chapter  Chapter? @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  subject  Subject? @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  course   Course?  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  teacher      User         @relation(fields: [teacherId], references: [id])
+  questionType QuestionType @relation(fields: [typeId], references: [id])
+
   answers       QuestionAnswer[]
   testLinks     TestQuestion[]
   userResponses UserQuestionAnswer[]
+
+
+@@index([chapterId])
+@@index([subjectId])
+@@index([courseId])
+@@index([scope])
 
   @@map("questions")
 }
@@ -568,6 +595,8 @@ model Test {
   subjectId String? @map("subject_id")
   courseId  String? @map("course_id")
 
+  mode String @default("FIXED") 
+
   title           String
   testType        String    @map("test_type") // QUIZ, ESSAY
   durationMinutes Int       @map("duration_minutes")
@@ -584,6 +613,8 @@ model Test {
   testQuestions    TestQuestion[]
   submissions      Submission[]
   learningProgress LearningProgress[]
+
+  snapshots TestSnapshot[]
 
   @@map("tests")
 }
@@ -674,6 +705,50 @@ model SubjectGrade {
   @@map("subject_grades")
 }
 
+
+model TestSnapshot {
+  id String @id @default(uuid())
+
+  testId String
+  studentId String
+
+  data Json // ✅ snapshot câu hỏi + answers
+  hash String
+
+  createdAt DateTime @default(now())
+
+  test Test @relation(fields: [testId], references: [id])
+
+  @@unique([testId, studentId])
+
+  @@map("test_snapshot")
+}
+
+model ExamSession {
+  id String @id @default(uuid())
+
+  testId String
+  studentId String
+
+  token String @unique
+
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("exam_session")
+}
+
+model CheatLog {
+  id String @id @default(uuid())
+
+  studentId String
+  testId String
+  type String
+
+  createdAt DateTime @default(now())
+
+  @@map("cheat_log")
+}
 // ==========================================
 // PHẦN 5: LỊCH HỌC, ĐIỂM DANH & TƯƠNG TÁC
 // ==========================================

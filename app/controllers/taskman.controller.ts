@@ -1,10 +1,29 @@
 import { ApplicationController } from ".";
+import { BeforeAction } from "ts-rails";
 import { TaskmanService } from "@services/taskman.service";
 import { uploadTaskmanFile } from "@middlewares/upload.middleware";
+import { RequireSubjectTeacherMiddleware } from "@middlewares/require_subject_teacher.middleware";
 
 export class TaskmanController extends ApplicationController {
+  // 1. Khai báo (Nhớ có ngoặc kép " ")
+  // static beforeActions = [
+  //     BeforeAction("checkTeacherRole", {
+  //       only: ["createLink", "createFile", "update", "toggleVisibility", "reorder", "delete"] 
+  //     })
+  // ];  
+
   private service = new TaskmanService();
 
+  // // 2. Tên hàm phải khớp 100% với chuỗi ở trên và nằm TRONG class này
+  // async checkTeacherRole() {
+  //   return new Promise((resolve, reject) => {
+  //     const middleware = new RequireSubjectTeacherMiddleware();
+  //     middleware.execute(this.req, this.res, (err?: any) => {
+  //       if (err) return reject(err);
+  //       resolve(true); 
+  //     });
+  //   });
+  // }
   // ✅ CREATE LINK
   async createLink() {
     if (!this.requireLogin()) return;
@@ -94,7 +113,67 @@ export class TaskmanController extends ApplicationController {
     try {
       const { id } = this.req.params;
 
-      const data = await this.service.delete(id);
+      const data = await this.service.deleteWithFile(id);
+
+      return this.res.json({ success: true, data });
+    } catch (err: any) {
+      return this.res.status(400).json({
+        success: false,
+        message: err.message,
+      });
+    }
+  }
+
+  // ✅ LIST BY SUBJECT (nhóm theo chapter)
+  async listBySubject() {
+    if (!this.requireLogin()) return;
+
+    try {
+      const { subjectId } = this.req.params;
+
+      if (!subjectId) {
+        return this.res.status(400).json({
+          success: false,
+          message: "subjectId là bắt buộc",
+        });
+      }
+
+      const data = await this.service.listBySubject(subjectId);
+
+      return this.res.json({ success: true, data });
+    } catch (err: any) {
+      return this.res.status(400).json({
+        success: false,
+        message: err.message,
+      });
+    }
+  }
+
+  // ✅ REORDER (drag & drop)
+  async reorder() {
+    if (!this.requireLogin()) return;
+
+    try {
+      const { items } = this.req.body;
+
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return this.res.status(400).json({
+          success: false,
+          message: "items phải là array không rỗng",
+        });
+      }
+
+      // Validate mỗi item có id và sortOrder
+      for (const item of items) {
+        if (!item.id || item.sortOrder === undefined) {
+          return this.res.status(400).json({
+            success: false,
+            message: "Mỗi item phải có id và sortOrder",
+          });
+        }
+      }
+
+      const data = await this.service.reorder(items);
 
       return this.res.json({ success: true, data });
     } catch (err: any) {

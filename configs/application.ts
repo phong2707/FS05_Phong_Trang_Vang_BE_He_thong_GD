@@ -24,6 +24,7 @@ import {
   setupSwagger,
 } from "./plugins";
 import { Route } from "./routes";
+import path from "path";
 
 // Configure the middleware factory for the entire application.
 RailsApplication.middlewareFactory = {
@@ -120,8 +121,7 @@ export class Application extends RailsApplication {
     this.app.use(express.static(appPath("assets")));
 
 
-// ✅ 2. UPLOADS (THÊM DÒNG NÀY)
-    this.app.use("/uploads", express.static("uploads"));
+this.app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 
     // 2. Vendor Assets (Refactored to be cleaner)

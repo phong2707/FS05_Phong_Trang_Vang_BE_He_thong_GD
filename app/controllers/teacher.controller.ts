@@ -8,6 +8,7 @@ import {
   getTeacherSubjectAttendanceStats,
   updateTeacherSessionAttendanceRecords,
 } from "@services/teacherAttendance.service";
+import { getStudentsBySubject, getStudentsByClassGroup } from "@services/teacherStudent.service";
 
 export class TeacherController extends ApplicationController {
   /**
@@ -172,5 +173,32 @@ export class TeacherController extends ApplicationController {
     }
 
     return this.res.json({ success: true, data, message: "Completed attendance session successfully" });
+  }
+
+  /**
+   * GET /v1/teacher/subjects/:id/students
+   * Query params: ?classGroupId=xxx (optional, để lọc theo lớp)
+   */
+  async getSubjectStudents() {
+    if (!this.currentUser) {
+      return this.res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const { id } = this.req.params;
+    const { classGroupId } = this.req.query as { classGroupId?: string };
+
+    let data: any = null;
+
+    if (classGroupId) {
+      data = await getStudentsByClassGroup(this.currentUser.id, id, String(classGroupId));
+    } else {
+      data = await getStudentsBySubject(this.currentUser.id, id);
+    }
+
+    if (data === null) {
+      return this.res.status(404).json({ success: false, message: "Subject not found or not assigned" });
+    }
+
+    return this.res.json({ success: true, data });
   }
 }

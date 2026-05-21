@@ -7,19 +7,11 @@ import { AuthRoute } from "./auth";
 import { ApiV1DevRoute } from "./dev";
 import { TeacherRoute } from "./teacher.route";
 import { ClassGroupRoute } from "./classGroup.route";
-
-
-import {TaskmanRoute} from "./taskman.route";
-
+import { TaskmanRoute } from "./taskman.route";
 import { SubjectRoute } from "./subject.route";
-
 import { QuestionRoute } from "./question.route";
-
 import { TestRoute } from "./test.route";
-
-
 import { AssignmentRoute } from "./assignment.route";
-
 
 export class ApiV1Route extends RailsRoute {
   public draw() {
@@ -29,34 +21,25 @@ export class ApiV1Route extends RailsRoute {
 
     this.path("/auth", AuthRoute.draw());
 
-    // ✅ Teacher & Course (CHO PHÉP TEST KHÔNG LOGIN)
-this.path("/teacher", TeacherRoute.draw());
-this.path("/class-groups", ClassGroupRoute.draw());
-
-// ✅ TỪ ĐÂY TRỞ XUỐNG MỚI BẮT LOGIN
-this.path(action(ValidateUserLoginMiddleware));
-
-
-    this.path(action(ValidateUserLoginMiddleware));
-
-this.path("/teachers", TeacherRoute.draw());
-this.path("/subjects", SubjectRoute.draw());
-
+    // Public routes (if needed for testing)
+    this.path("/teacher", TeacherRoute.draw());
     this.path("/class-groups", ClassGroupRoute.draw());
 
+    // Protected routes
+    this.path(action(ValidateUserLoginMiddleware));
+
+    this.path("/teachers", TeacherRoute.draw());
+    this.path("/subjects", SubjectRoute.draw());
+    this.path("/class-groups", ClassGroupRoute.draw());
     this.path("/", TaskmanRoute.draw());
-
     this.path("/", QuestionRoute.draw());
-
     this.path("/", TestRoute.draw());
-
     this.path("/", AssignmentRoute.draw());
-    // Permission routes - action(Controller, "index") tạo instance mới mỗi request
+
+    // Permission routes
     this.get("/permissions/me", action(MyPermissionController, "index"));
 
-    // Admin routes - yêu cầu AM permission
+    // Admin routes
     this.path("/admin", ApiV1AdminRoute.draw());
-
-
   }
 }

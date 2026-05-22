@@ -89,4 +89,57 @@ export class StudentLearningController extends ApplicationController {
         .json({ success: false, message: error.message });
     }
   }
+
+  /**
+   * API Lấy điểm số của sinh viên
+   */
+  async getMyGrades() {
+    try {
+      if (!this.currentUser) {
+        return this.res
+          .status(401)
+          .json({ success: false, message: "Vui lòng đăng nhập" });
+      }
+
+      const grades = await this.studentLearningService.getStudentGrades(
+        this.currentUser.id,
+      );
+
+      return this.res.json({
+        success: true,
+        data: grades,
+      });
+    } catch (error: any) {
+      return this.res
+        .status(500)
+        .json({ success: false, message: error.message });
+    }
+  }
+
+  /**
+   * API Lấy lịch sử điểm danh của sinh viên
+   */
+  async getMyAttendances() {
+    try {
+      if (!this.currentUser) {
+        return this.res
+          .status(401)
+          .json({ success: false, message: "Vui lòng đăng nhập" });
+      }
+
+      const attendances =
+        await this.studentLearningService.getStudentAttendances(
+          this.currentUser.id,
+        );
+
+      return this.res.json({
+        success: true,
+        data: attendances,
+      });
+    } catch (error: any) {
+      return this.res
+        .status(500)
+        .json({ success: false, message: error.message });
+    }
+  }
 }

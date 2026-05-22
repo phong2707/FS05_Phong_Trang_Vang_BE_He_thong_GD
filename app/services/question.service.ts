@@ -26,7 +26,7 @@ export async function createQuestion(
       isCorrect: boolean;
       orderIndex: number;
     }[];
-  }
+  },
 ) {
   const scope = data.scope || "CHAPTER";
 
@@ -46,76 +46,69 @@ export async function createQuestion(
   /**
    * ✅ LẤY CHAPTER + SUBJECT + COURSE
    */
-  let chapter = null;
-let subjectId = data.subjectId || null;
-let courseId = data.courseId || null;
+  let subjectId: string | null = data.subjectId || null;
 
-/**
- * ✅ CASE CHAPTER
- */
-if (data.chapterId) {
-  chapter = await prisma.chapter.findFirst({
-    where: {
-      id: data.chapterId,
-      subject: {
+  /**
+   * ✅ CASE CHAPTER
+   */
+  if (data.chapterId) {
+    const chapter = await prisma.chapter.findFirst({
+      where: {
+        id: data.chapterId,
+        subject: {
+          teachers: {
+            some: { teacherId },
+          },
+        },
+      },
+    });
+
+    if (!chapter) {
+      throw new Error("Không có quyền tạo câu hỏi cho chương này");
+    }
+
+    subjectId = chapter.subjectId;
+  }
+
+  /**
+   * ✅ ✅ NEW: CASE SUBJECT
+   */
+  if (scope === "SUBJECT" && data.subjectId) {
+    const subject = await prisma.subject.findFirst({
+      where: {
+        id: data.subjectId,
         teachers: {
           some: { teacherId },
         },
       },
-    },
-    include: {
-      subject: true,
-    },
-  });
+    });
 
-  if (!chapter) {
-    throw new Error("Không có quyền tạo câu hỏi cho chương này");
+    if (!subject) {
+      throw new Error("Không có quyền tạo câu hỏi cho môn này");
+    }
+
+    subjectId = subject.id;
   }
 
-  subjectId = chapter.subjectId;
-  courseId = chapter.subject.courseId;
-}
-
-/**
- * ✅ ✅ NEW: CASE SUBJECT
- */
-if (scope === "SUBJECT" && data.subjectId) {
-  const subject = await prisma.subject.findFirst({
-    where: {
-      id: data.subjectId,
-      teachers: {
-        some: { teacherId },
+  /**
+   * ✅ ✅ NEW: CASE COURSE
+   */
+  if (scope === "COURSE" && data.courseId) {
+    const subject = await prisma.subject.findFirst({
+      where: {
+        courseId: data.courseId,
+        teachers: {
+          some: { teacherId },
+        },
       },
-    },
-  });
+    });
 
-  if (!subject) {
-    throw new Error("Không có quyền tạo câu hỏi cho môn này");
+    if (!subject) {
+      throw new Error("Không có quyền tạo câu hỏi cho khóa này");
+    }
+
+    courseId = data.courseId;
   }
-
-  subjectId = subject.id;
-  courseId = subject.courseId; // ✅ QUAN TRỌNG
-}
-
-/**
- * ✅ ✅ NEW: CASE COURSE
- */
-if (scope === "COURSE" && data.courseId) {
-  const subject = await prisma.subject.findFirst({
-    where: {
-      courseId: data.courseId,
-      teachers: {
-        some: { teacherId },
-      },
-    },
-  });
-
-  if (!subject) {
-    throw new Error("Không có quyền tạo câu hỏi cho khóa này");
-  }
-
-  courseId = data.courseId;
-}
   /**
    * ✅ Validate nội dung
    */
@@ -131,17 +124,12 @@ if (scope === "COURSE" && data.courseId) {
   if (format === "ESSAY") {
     return prisma.question.create({
       data: {
-        scope,
-        chapterId: data.chapterId || null,
-        subjectId,
-        courseId,
-
+        subjectId: subjectId,
         teacherId,
         typeId: data.typeId,
         questionFormat: "ESSAY",
         content: data.content,
         explanation: data.explanation,
-        difficulty: data.difficulty || "MEDIUM",
       },
     });
   }
@@ -154,7 +142,7 @@ if (scope === "COURSE" && data.courseId) {
   }
 
   if (format === "SINGLE_CHOICE") {
-    const correctCount = data.answers.filter(a => a.isCorrect).length;
+    const correctCount = data.answers.filter((a) => a.isCorrect).length;
 
     if (correctCount !== 1) {
       throw new Error("Câu SINGLE phải có đúng 1 đáp án đúng");
@@ -168,17 +156,12 @@ if (scope === "COURSE" && data.courseId) {
 
   return prisma.question.create({
     data: {
-      scope,
-      chapterId: data.chapterId || null,
-      subjectId,
-      courseId,
-
+      subjectId: subjectId,
       teacherId,
       typeId: data.typeId,
       questionFormat: format,
       content: data.content,
       explanation: data.explanation,
-      difficulty: data.difficulty || "MEDIUM",
 
       answers: {
         create: answersWithOrder,
@@ -198,22 +181,31 @@ export async function listQuestions(
     subjectId?: string;
     courseId?: string;
   },
-  teacherId: string
+  teacherId: string,
 ) {
-  return prisma.question.findMany({
-    where: {
-      ...(
-        params.chapterId
-          ? { chapterId: params.chapterId }
-          : params.subjectId
-          ? { subjectId: params.subjectId }
-          : params.courseId
-          ? { courseId: params.courseId }
-          : {}
-      ),
+  let subjectIds: string[] = [];
 
-      teacherId,
-    },
+  if (params.chapterId) {
+    const chapter = await prisma.chapter.findUnique({
+      where: { id: params.chapterId },
+    });
+    if (chapter) subjectIds.push(chapter.subjectId);
+  } else if (params.subjectId) {
+    subjectIds.push(params.subjectId);
+  } else if (params.courseId) {
+    const subjects = await prisma.subject.findMany({
+      where: { courseId: params.courseId },
+    });
+    subjectIds = subjects.map((s) => s.id);
+  }
+
+  const whereClause: any = { teacherId };
+  if (subjectIds.length > 0) {
+    whereClause.subjectId = { in: subjectIds };
+  }
+
+  return prisma.question.findMany({
+    where: whereClause,
     include: {
       answers: true,
       questionType: true,
@@ -230,7 +222,7 @@ export async function listQuestions(
 export async function updateQuestion(
   questionId: string,
   teacherId: string,
-  data: any
+  data: any,
 ) {
   // ✅ lấy question hiện tại
   const q = await prisma.question.findFirst({
@@ -243,62 +235,24 @@ export async function updateQuestion(
   if (!q) throw new Error("Không có quyền");
 
   const format = data.questionFormat || q.questionFormat;
-  const scope = data.scope || q.scope;
+  let newSubjectId = q.subjectId;
 
-  /**
-   * ✅ ENFORCE SCOPE
-   */
-  if (scope === "CHAPTER" && !data.chapterId && !q.chapterId) {
-    throw new Error("CHAPTER phải có chapterId");
+  if (data.chapterId) {
+    const chapter = await prisma.chapter.findUnique({
+      where: { id: data.chapterId },
+    });
+
+    if (!chapter) throw new Error("Chapter không tồn tại");
+
+    newSubjectId = chapter.subjectId;
+  } else if (data.subjectId) {
+    const subject = await prisma.subject.findUnique({
+      where: { id: data.subjectId },
+    });
+
+    if (!subject) throw new Error("Subject không tồn tại");
+    newSubjectId = subject.id;
   }
-
-  if (scope === "SUBJECT" && !data.subjectId && !q.subjectId) {
-    throw new Error("SUBJECT phải có subjectId");
-  }
-
-  if (scope === "COURSE" && !data.courseId && !q.courseId) {
-    throw new Error("COURSE phải có courseId");
-  }
-
-  
-/**
- * ✅ 🔥 SYNC CHAPTER → SUBJECT → COURSE
- * (RẤT QUAN TRỌNG)
- */
-if (data.chapterId && data.chapterId !== q.chapterId) {
-  const chapter = await prisma.chapter.findUnique({
-    where: { id: data.chapterId },
-    include: { subject: true },
-  });
-
-  if (!chapter) throw new Error("Chapter không tồn tại");
-
-  data.subjectId = chapter.subjectId;
-  data.courseId = chapter.subject.courseId;
-}
-
-/**
- * ✅ ✅ FIX: SUBJECT LOGIC PHẢI ĐỂ NGOÀI
- */
-if (scope === "SUBJECT" && data.subjectId) {
-  const subject = await prisma.subject.findUnique({
-    where: { id: data.subjectId },
-  });
-
-  if (!subject) throw new Error("Subject không tồn tại");
-
-  data.courseId = subject.courseId;
-  data.chapterId = null; // ✅ đúng logic
-}
-
-/**
- * ✅ ✅ FIX: COURSE LOGIC PHẢI ĐỂ NGOÀI
- */
-if (scope === "COURSE") {
-  data.chapterId = null;
-  data.subjectId = null;
-}
-
 
   /**
    * ✅ UPDATE QUESTION CORE
@@ -306,12 +260,7 @@ if (scope === "COURSE") {
   await prisma.question.update({
     where: { id: questionId },
     data: {
-      scope,
-
-      chapterId: data.chapterId ?? q.chapterId,
-      subjectId: data.subjectId ?? q.subjectId,
-      courseId: data.courseId ?? q.courseId,
-
+      subjectId: newSubjectId,
       content: data.content,
       explanation: data.explanation,
       questionFormat: format,
@@ -365,14 +314,10 @@ if (scope === "COURSE") {
   });
 }
 
-
 /**
  * ✅ Delete
  */
-export async function deleteQuestion(
-  questionId: string,
-  teacherId: string
-) {
+export async function deleteQuestion(questionId: string, teacherId: string) {
   const q = await prisma.question.findFirst({
     where: {
       id: questionId,

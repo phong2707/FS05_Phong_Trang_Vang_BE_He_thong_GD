@@ -14,5 +14,14 @@ export class StudentLearningRoute extends RailsRoute {
       "/subjects/:subjectId/materials",
       action(StudentLearningController, "getMaterials"),
     );
+
+    // GET /student/grades - Lấy điểm số của sinh viên
+    this.get("/grades", action(StudentLearningController, "getMyGrades"));
+
+    // GET /student/attendances - Lấy lịch sử điểm danh của sinh viên
+    this.get(
+      "/attendances",
+      action(StudentLearningController, "getMyAttendances"),
+    );
   }
 }

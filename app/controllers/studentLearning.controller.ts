@@ -142,4 +142,98 @@ export class StudentLearningController extends ApplicationController {
         .json({ success: false, message: error.message });
     }
   }
+
+  /**
+   * API Sinh viên nộp bài tập tự luận (Assignment)
+   * POST /student/assignments/submit
+   */
+  async submitAssignment() {
+    try {
+      if (!this.currentUser) {
+        return this.res
+          .status(401)
+          .json({ success: false, message: "Vui lòng đăng nhập" });
+      }
+
+      const { testId, classGroupId, essayAnswer } = this.req.body;
+
+      if (!testId || !classGroupId || !essayAnswer) {
+        return this.res
+          .status(400)
+          .json({ success: false, message: "Thiếu thông tin bài nộp" });
+      }
+
+      const result = await this.studentLearningService.submitStudentAssignment(
+        this.currentUser.id,
+        { testId, classGroupId, essayAnswer },
+      );
+
+      return this.res.json({ success: true, data: result });
+    } catch (error: any) {
+      return this.res
+        .status(400)
+        .json({ success: false, message: error.message });
+    }
+  }
+
+  /**
+   * API Sinh viên bắt đầu làm bài kiểm tra (Test/Quiz)
+   * POST /student/tests/start
+   */
+  async startTest() {
+    try {
+      if (!this.currentUser) {
+        return this.res
+          .status(401)
+          .json({ success: false, message: "Vui lòng đăng nhập" });
+      }
+
+      // Payload can contain testId for fixed tests, or scope/rules for random tests
+      const payload = this.req.body;
+
+      const result = await this.studentLearningService.startStudentTest(
+        this.currentUser.id,
+        payload,
+      );
+
+      return this.res.json({ success: true, data: result });
+    } catch (error: any) {
+      return this.res
+        .status(400)
+        .json({ success: false, message: error.message });
+    }
+  }
+
+  /**
+   * API Sinh viên nộp bài kiểm tra (Test/Quiz)
+   * POST /student/tests/submit
+   */
+  async submitTest() {
+    try {
+      if (!this.currentUser) {
+        return this.res
+          .status(401)
+          .json({ success: false, message: "Vui lòng đăng nhập" });
+      }
+
+      const { testId, classGroupId, sessionToken, answers } = this.req.body;
+
+      if (!testId || !classGroupId || !sessionToken || !answers) {
+        return this.res
+          .status(400)
+          .json({ success: false, message: "Thiếu thông tin bài nộp" });
+      }
+
+      const result = await this.studentLearningService.submitStudentTest(
+        this.currentUser.id,
+        { testId, classGroupId, sessionToken, answers },
+      );
+
+      return this.res.json({ success: true, data: result });
+    } catch (error: any) {
+      return this.res
+        .status(400)
+        .json({ success: false, message: error.message });
+    }
+  }
 }

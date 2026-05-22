@@ -107,8 +107,13 @@ export async function createQuestion(
       throw new Error("Không có quyền tạo câu hỏi cho khóa này");
     }
 
-    courseId = data.courseId;
+    subjectId = subject.id;
   }
+
+  if (!subjectId) {
+    throw new Error("Không xác định được môn học (subjectId) cho câu hỏi");
+  }
+
   /**
    * ✅ Validate nội dung
    */
@@ -241,16 +246,19 @@ export async function updateQuestion(
     const chapter = await prisma.chapter.findUnique({
       where: { id: data.chapterId },
     });
-
     if (!chapter) throw new Error("Chapter không tồn tại");
-
     newSubjectId = chapter.subjectId;
   } else if (data.subjectId) {
     const subject = await prisma.subject.findUnique({
       where: { id: data.subjectId },
     });
-
     if (!subject) throw new Error("Subject không tồn tại");
+    newSubjectId = subject.id;
+  } else if (data.courseId) {
+    const subject = await prisma.subject.findFirst({
+      where: { courseId: data.courseId, teachers: { some: { teacherId } } },
+    });
+    if (!subject) throw new Error("Không tìm thấy môn học phù hợp trong khóa");
     newSubjectId = subject.id;
   }
 

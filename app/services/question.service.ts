@@ -193,27 +193,48 @@ if (scope === "COURSE" && data.courseId) {
  * ✅ Danh sách câu hỏi
  */
 export async function listQuestions(
-  params: {
-    chapterId?: string;
-    subjectId?: string;
-    courseId?: string;
+  subjectId: string,
+  teacherId: string,
+  filter?: {
+    questionFormat?: string;
+    typeId?: string;
+    search?: string;
   },
-  teacherId: string
+  pagination?: { page: number; pageSize: number }
 ) {
-  return prisma.question.findMany({
-    where: {
-      ...(
-        params.chapterId
-          ? { chapterId: params.chapterId }
-          : params.subjectId
-          ? { subjectId: params.subjectId }
-          : params.courseId
-          ? { courseId: params.courseId }
-          : {}
-      ),
+  const where: any = {
+    subjectId,
+    subject: {
+      teachers: {
+        some: { teacherId }
+      }
+    }
+  };
 
-      teacherId,
-    },
+  if (filter) {
+    if (filter.questionFormat) where.questionFormat = filter.questionFormat;
+    if (filter.typeId) where.typeId = filter.typeId;
+    if (filter.search) where.content = { contains: filter.search };
+  }
+
+  if (pagination) {
+    const page = Math.max(1, pagination.page || 1);
+    const pageSize = Math.max(1, pagination.pageSize || 10);
+    const total = await prisma.question.count({ where });
+
+    const items = await prisma.question.findMany({
+      where,
+      include: { answers: true, questionType: true },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    });
+
+    return { items, total, page, pageSize };
+  }
+
+  return prisma.question.findMany({
+    where,
     include: {
       answers: true,
       questionType: true,
@@ -222,6 +243,36 @@ export async function listQuestions(
       createdAt: "desc",
     },
   });
+}
+
+/**
+ * Lấy danh sách loại câu hỏi
+ */
+export async function getQuestionTypes() {
+  return prisma.questionType.findMany({ orderBy: { name: "asc" } });
+}
+
+/**
+ * Lấy chi tiết câu hỏi (bao gồm answers + questionType)
+ * Kiểm tra quyền: chỉ owner (teacher) hoặc admin mới được xem
+ */
+export async function getQuestionDetail(
+  questionId: string,
+  teacherId: string,
+  isAdmin: boolean = false
+) {
+  const q = await prisma.question.findUnique({
+    where: { id: questionId },
+    include: { answers: true, questionType: true },
+  });
+
+  if (!q) throw new Error("Không tìm thấy câu hỏi");
+
+  if (q.teacherId !== teacherId && !isAdmin) {
+    throw new Error("Không có quyền");
+  }
+
+  return q;
 }
 
 /**
@@ -382,9 +433,14 @@ export async function deleteQuestion(
 
   if (!q) throw new Error("Không có quyền");
 
-  await prisma.question.delete({
-    where: { id: questionId },
-  });
+  // Kiểm tra câu hỏi đã được dùng trong đề thi chưa
+  const usedCount = await prisma.testQuestion.count({ where: { questionId } });
+
+  if (usedCount > 0) {
+    throw new Error("Câu hỏi đã được dùng trong đề thi, không thể xóa");
+  }
+
+  await prisma.question.delete({ where: { id: questionId } });
 
   return { deleted: true };
 }

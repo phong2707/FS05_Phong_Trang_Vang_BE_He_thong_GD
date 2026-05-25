@@ -10,6 +10,18 @@ export class QuestionRoute extends RailsRoute {
       action(QuestionController, "list")
     );
 
+    // ✅ Question types
+    this.get(
+      "/question-types",
+      action(QuestionController, "types")
+    );
+
+    // ✅ SHOW
+    this.get(
+      "/questions/:id",
+      action(QuestionController, "show")
+    );
+
     // ✅ CREATE
     this.post(
       "/questions",

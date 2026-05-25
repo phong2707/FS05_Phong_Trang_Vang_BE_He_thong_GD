@@ -27,12 +27,47 @@ export class QuestionController extends ApplicationController {
 
     const { subjectId } = this.req.params;
 
+    // Đọc params filter + pagination từ query
+    const { format, typeId, search, page, pageSize } = this.req.query as any;
+
+    const filter: any = {};
+    if (format) filter.questionFormat = format;
+    if (typeId) filter.typeId = typeId;
+    if (search) filter.search = search;
+
+    const pagination = page || pageSize ? { page: Number(page || 1), pageSize: Number(pageSize || 10) } : undefined;
+
     const data = await QuestionService.listQuestions(
       subjectId,
-      this.currentUser!.id
+      this.currentUser!.id,
+      filter,
+      pagination
     );
 
     return this.res.json({ success: true, data });
+  }
+
+  // GET /question-types
+  async types() {
+    if (!this.requireLogin()) return;
+
+    const data = await QuestionService.getQuestionTypes();
+    return this.res.json({ success: true, data });
+  }
+
+  // GET /questions/:id
+  async show() {
+    if (!this.requireLogin()) return;
+
+    const { id } = this.req.params;
+
+    try {
+      const isAdmin = (this.res.locals as any).isAdmin || false;
+      const data = await QuestionService.getQuestionDetail(id, this.currentUser!.id, isAdmin);
+      return this.res.json({ success: true, data });
+    } catch (e: any) {
+      return this.res.status(400).json({ success: false, message: e.message });
+    }
   }
 
   async update() {

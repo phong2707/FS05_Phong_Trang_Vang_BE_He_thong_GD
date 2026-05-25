@@ -23,9 +23,14 @@ export class QuestionController extends ApplicationController {
   }
 
   async list() {
-    if (!this.requireLogin()) return;
+  if (!this.requireLogin()) return;
 
-    const { subjectId } = this.req.params;
+  const normalize = (val: any) =>
+    typeof val === "string" ? val : undefined;
+
+  const chapterId = normalize(this.req.query.chapterId);
+  const subjectId = normalize(this.req.query.subjectId);
+  const courseId = normalize(this.req.query.courseId);
 
     // Đọc params filter + pagination từ query
     const { format, typeId, search, page, pageSize } = this.req.query as any;
@@ -44,8 +49,8 @@ export class QuestionController extends ApplicationController {
       pagination
     );
 
-    return this.res.json({ success: true, data });
-  }
+  return this.res.json({ success: true, data });
+}
 
   // GET /question-types
   async types() {

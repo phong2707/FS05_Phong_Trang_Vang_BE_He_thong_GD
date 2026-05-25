@@ -6,7 +6,7 @@ export class QuestionRoute extends RailsRoute {
 
     // ✅ LIST
     this.get(
-      "/subjects/:subjectId/questions",
+      "/questions",
       action(QuestionController, "list")
     );
 

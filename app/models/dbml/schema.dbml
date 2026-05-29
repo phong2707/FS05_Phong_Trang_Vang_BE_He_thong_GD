@@ -209,13 +209,14 @@ Table course_enrollments {
   id String [pk]
   userId String [not null]
   courseId String [not null]
-  status String [not null, default: 'ACTIVE']
+  status String [not null, default: 'PENDING']
   progress Float [not null, default: 0]
   enrolledAt DateTime [default: `now()`, not null]
   completedAt DateTime
   user users [not null]
   course courses [not null]
   progresses learning_progress [not null]
+  transaction transactions
 
   indexes {
     (userId, courseId) [unique]
@@ -606,13 +607,19 @@ Table wallets {
 
 Table transactions {
   id String [pk]
+  enrollmentId String [unique, not null]
   studentId String [not null]
   courseId String [not null]
   amount Float [not null]
   paymentMethod String [not null, default: 'VNPAY']
   referenceCode String
-  status String [not null]
+  status String [not null, default: 'PENDING']
+  bankAccount String
+  bankName String
+  accountName String
   createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  enrollment course_enrollments [not null]
   student users [not null]
   course courses [not null]
 }
@@ -792,6 +799,8 @@ Ref: course_reviews.courseId > courses.id [delete: Cascade]
 Ref: course_reviews.studentId > users.id
 
 Ref: wallets.userId - users.id [delete: Cascade]
+
+Ref: transactions.enrollmentId - course_enrollments.id [delete: Cascade]
 
 Ref: transactions.studentId > users.id
 

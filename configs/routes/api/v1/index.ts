@@ -12,6 +12,7 @@ import { SubjectRoute } from "./subject.route";
 import { QuestionRoute } from "./question.route";
 import { TestRoute } from "./test.route";
 import { AssignmentRoute } from "./assignment.route";
+import { EnrollmentRoute } from "./enrollment.route";
 
 export class ApiV1Route extends RailsRoute {
   public draw() {
@@ -21,13 +22,16 @@ export class ApiV1Route extends RailsRoute {
 
     this.path("/auth", AuthRoute.draw());
 
+    // Public routes cho enrollment guest + VNPay callbacks
+    this.path("/payments", EnrollmentRoute.draw());
+    this.path("/enrollments", EnrollmentRoute.draw());
+
     // Public routes (if needed for testing)
     this.path("/teacher", TeacherRoute.draw());
     this.path("/class-groups", ClassGroupRoute.draw());
 
     // Protected routes
     this.path(action(ValidateUserLoginMiddleware));
-
     this.path("/teachers", TeacherRoute.draw());
     this.path("/subjects", SubjectRoute.draw());
     this.path("/class-groups", ClassGroupRoute.draw());

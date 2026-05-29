@@ -291,14 +291,15 @@ model CourseEnrollment {
   id          String    @id @default(uuid())
   userId      String    @map("user_id")
   courseId    String    @map("course_id")
-  status      String    @default("ACTIVE") // ACTIVE, COMPLETED, CANCELLED
+  status      String    @default("PENDING") // PENDING, ACTIVE, COMPLETED, CANCELLED
   progress    Float     @default(0) // Cache % tiến độ (0 - 100)
   enrolledAt  DateTime  @default(now()) @map("enrolled_at")
   completedAt DateTime? @map("completed_at")
 
-  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course     Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  progresses LearningProgress[] // Chi tiết tiến độ từng bài học
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course       Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  progresses   LearningProgress[] // Chi tiết tiến độ từng bài học
+  transaction  Transaction? // Liên kết với giao dịch thanh toán
 
   @@unique([userId, courseId])
   @@index([userId, status])
@@ -899,18 +900,25 @@ model Wallet {
 }
 
 model Transaction {
-  id            String   @id @default(uuid())
-  studentId     String   @map("student_id")
-  courseId      String   @map("course_id")
-  amount        Float
-  paymentMethod String   @default("VNPAY") @map("payment_method")
-  referenceCode String?  @map("reference_code")
-  status        String // SUCCESS, FAILED, PENDING
-  createdAt     DateTime @default(now()) @map("created_at")
+  id             String   @id @default(uuid())
+  enrollmentId   String   @unique @map("enrollment_id") // Liên kết 1-1 với CourseEnrollment
+  studentId      String   @map("student_id")
+  courseId       String   @map("course_id")
+  amount         Float
+  paymentMethod  String   @default("VNPAY") @map("payment_method") // VNPAY, MANUAL
+  referenceCode  String?  @map("reference_code") // Mã giao dịch từ VNPay hoặc ref
+  status         String   @default("PENDING") // SUCCESS, FAILED, PENDING
+  bankAccount    String?  @map("bank_account") // Thông tin STK cho thanh toán manual
+  bankName       String?  @map("bank_name")
+  accountName    String?  @map("account_name")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
-  student User   @relation(fields: [studentId], references: [id])
-  course  Course @relation(fields: [courseId], references: [id])
+  enrollment CourseEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  student    User             @relation(fields: [studentId], references: [id])
+  course     Course           @relation(fields: [courseId], references: [id])
 
+  @@index([studentId, status])
   @@map("transactions")
 }
 

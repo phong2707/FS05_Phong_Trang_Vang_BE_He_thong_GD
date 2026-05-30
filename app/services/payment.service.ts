@@ -6,8 +6,8 @@ import { logger } from "ts-rails";
  * Bạn cần thêm vào environment variables (.env.local hoặc .env)
  */
 const VNPAY_CONFIG = {
-  TMN_CODE: process.env.VNPAY_TMN_CODE || "2QXED8KH", 
-  SECRET_KEY: process.env.VNPAY_SECRET_KEY || "YJPXMWFPYNZOTPQAUYUHNYHFPFNXMDLC", 
+  TMN_CODE: process.env.VNPAY_TMN_CODE || "UGXDL7AZ", 
+  SECRET_KEY: process.env.VNPAY_SECRET_KEY || "SD9V3E9HG6EHUIFFMM5Y51ZEFFINVQCZ", 
   BASE_URL: process.env.VNPAY_BASE_URL || "https://sandbox.vnpayment.vn",
   RETURN_URL: process.env.VNPAY_RETURN_URL || "http://localhost:8000/api/v1/payments/vnpay-return",
   IPN_URL: process.env.VNPAY_IPN_URL || "http://localhost:8000/api/v1/payments/vnpay-ipn",

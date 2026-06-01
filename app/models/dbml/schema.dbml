@@ -203,6 +203,7 @@ Table courses {
   courseReviews course_reviews [not null]
   transactions transactions [not null]
   tests tests [not null]
+  questions questions [not null]
 }
 
 Table course_enrollments {
@@ -296,6 +297,7 @@ Table chapters {
   videos videos [not null]
   taskmen taskmen [not null]
   tests tests [not null]
+  questions questions [not null]
   createdAt DateTime [default: `now()`, not null]
 }
 
@@ -382,14 +384,20 @@ Table question_types {
 
 Table questions {
   id String [pk]
-  subjectId String [not null]
+  scope String [not null, default: 'CHAPTER']
+  chapterId String
+  subjectId String
+  courseId String
   teacherId String [not null]
   typeId String [not null]
   questionFormat String [not null, default: 'SINGLE_CHOICE']
   content String [not null]
   explanation String
+  difficulty String [default: 'MEDIUM']
   createdAt DateTime [default: `now()`, not null]
-  subject subjects [not null]
+  chapter chapters
+  subject subjects
+  course courses
   teacher users [not null]
   questionType question_types [not null]
   answers question_answers [not null]
@@ -413,6 +421,7 @@ Table tests {
   chapterId String
   subjectId String
   courseId String
+  mode String [not null, default: 'FIXED']
   title String [not null]
   testType String [not null]
   durationMinutes Int [not null]
@@ -426,6 +435,7 @@ Table tests {
   testQuestions test_questions [not null]
   submissions submissions [not null]
   learningProgress learning_progress [not null]
+  snapshots test_snapshot [not null]
 }
 
 Table test_questions {
@@ -495,6 +505,37 @@ Table subject_grades {
   indexes {
     (subjectId, studentId) [unique]
   }
+}
+
+Table test_snapshot {
+  id String [pk]
+  testId String [not null]
+  studentId String [not null]
+  data Json [not null]
+  hash String [not null]
+  createdAt DateTime [default: `now()`, not null]
+  test tests [not null]
+
+  indexes {
+    (testId, studentId) [unique]
+  }
+}
+
+Table exam_session {
+  id String [pk]
+  testId String [not null]
+  studentId String [not null]
+  token String [unique, not null]
+  expiresAt DateTime [not null]
+  createdAt DateTime [default: `now()`, not null]
+}
+
+Table cheat_log {
+  id String [pk]
+  studentId String [not null]
+  testId String [not null]
+  type String [not null]
+  createdAt DateTime [default: `now()`, not null]
 }
 
 Table schedules {
@@ -706,7 +747,11 @@ Ref: learning_progress.taskId > taskmen.id [delete: Cascade]
 
 Ref: learning_progress.testId > tests.id [delete: Cascade]
 
+Ref: questions.chapterId > chapters.id [delete: Cascade]
+
 Ref: questions.subjectId > subjects.id [delete: Cascade]
+
+Ref: questions.courseId > courses.id [delete: Cascade]
 
 Ref: questions.teacherId > users.id
 
@@ -745,6 +790,8 @@ Ref: subject_grades.classGroupId > class_groups.id [delete: Cascade]
 Ref: subject_grades.studentId > users.id [delete: Cascade]
 
 Ref: subject_grades.updatedById > users.id [delete: Cascade]
+
+Ref: test_snapshot.testId > tests.id
 
 Ref: schedules.classGroupId > class_groups.id [delete: Cascade]
 

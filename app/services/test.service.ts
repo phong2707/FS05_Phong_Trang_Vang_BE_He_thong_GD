@@ -1,4 +1,3 @@
-
 import models from "@models";
 import crypto from "crypto";
 
@@ -16,7 +15,6 @@ function shuffleArray<T>(array: T[]): T[] {
   }
   return arr;
 }
-
 
 /**
  * ✅ Tạo bài test (quiz / assignment)
@@ -36,9 +34,8 @@ export async function createTest(
     startTime?: Date;
     endTime?: Date;
     questionIds: string[];
-  }
+  },
 ) {
-
   // 🔥 FIX: chống gửi nhiều scope
   const scopeCount =
     Number(!!data.chapterId) +
@@ -105,45 +102,44 @@ export async function createTest(
 
   // ✅ validate question
   const questionWhere: any = {
-  id: { in: data.questionIds },
-};
+    id: { in: data.questionIds },
+  };
 
-if (data.scope === "CHAPTER") {
-  const chapter = await prisma.chapter.findUnique({
-    where: { id: data.chapterId! },
-    include: { subject: true },
+  if (data.scope === "CHAPTER") {
+    const chapter = await prisma.chapter.findUnique({
+      where: { id: data.chapterId! },
+      include: { subject: true },
+    });
+
+    const courseId = chapter?.subject.courseId;
+
+    questionWhere.OR = [
+      { chapterId: data.chapterId },
+      { subjectId },
+      courseId ? { courseId } : undefined,
+    ].filter(Boolean);
+  }
+
+  if (data.scope === "SUBJECT") {
+    const subject = await prisma.subject.findUnique({
+      where: { id: data.subjectId! },
+    });
+
+    const courseId = subject?.courseId;
+
+    questionWhere.OR = [
+      { subjectId: data.subjectId },
+      courseId ? { courseId } : undefined,
+    ].filter(Boolean);
+  }
+
+  if (data.scope === "COURSE") {
+    questionWhere.courseId = data.courseId;
+  }
+
+  const questions = await prisma.question.findMany({
+    where: questionWhere,
   });
-
-  const courseId = chapter?.subject.courseId;
-
-  questionWhere.OR = [
-    { chapterId: data.chapterId },
-    { subjectId },
-    courseId ? { courseId } : undefined,
-  ].filter(Boolean);
-}
-
-if (data.scope === "SUBJECT") {
-  const subject = await prisma.subject.findUnique({
-    where: { id: data.subjectId! },
-  });
-
-  const courseId = subject?.courseId;
-
-  questionWhere.OR = [
-    { subjectId: data.subjectId },
-    courseId ? { courseId } : undefined,
-  ].filter(Boolean);
-}
-
-if (data.scope === "COURSE") {
-  questionWhere.courseId = data.courseId;
-}
-
-const questions = await prisma.question.findMany({
-  where: questionWhere,
-});
-
 
   if (questions.length !== data.questionIds.length) {
     throw new Error("Có câu hỏi không thuộc đúng phạm vi");
@@ -259,143 +255,138 @@ export async function submitTest(
       answerId?: string;
       essayAnswer?: string;
     }[];
-  }
+  },
 ) {
   // ✅ 1. fetch test
   const test = await prisma.test.findUnique({
-  where: { id: data.testId },
-  
-include: {
-  testQuestions: {
+    where: { id: data.testId },
+
     include: {
-      question: {
+      testQuestions: {
         include: {
-          answers: true
-        }
-      }
-    }
+          question: {
+            include: {
+              answers: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!test) {
+    throw new Error("Test không tồn tại");
   }
-},
-});
 
-if (!test) {
-  throw new Error("Test không tồn tại");
-}
+  if (!["CHAPTER", "SUBJECT", "COURSE"].includes(test.scope)) {
+    throw new Error("Test scope không hợp lệ");
+  }
 
+  // ✅ thêm đoạn này
+  if (test.testType === "ESSAY") {
+    throw new Error("Bài tự luận phải nộp qua assignment API");
+  }
 
-
-if (!["CHAPTER", "SUBJECT", "COURSE"].includes(test.scope)) {
-  throw new Error("Test scope không hợp lệ");
-}
-
-
-
-// ✅ thêm đoạn này
-if (test.testType === "ESSAY") {
-  throw new Error("Bài tự luận phải nộp qua assignment API");
-}
-
-const isStudentInClass = await prisma.classGroupUser.findUnique({
-  where: {
-    userId_classGroupId: {
-      userId: studentId,
-      classGroupId: data.classGroupId,
+  const isStudentInClass = await prisma.classGroupUser.findUnique({
+    where: {
+      userId_classGroupId: {
+        userId: studentId,
+        classGroupId: data.classGroupId,
+      },
     },
-  },
-});
+  });
 
-if (!isStudentInClass) {
-  throw new Error("Bạn không thuộc lớp này");
-}
+  if (!isStudentInClass) {
+    throw new Error("Bạn không thuộc lớp này");
+  }
 
-let isValid = false;
+  let isValid = false;
 
-if (test.scope === "CHAPTER") {
-  isValid = !!(await prisma.classGroup.findFirst({
+  if (test.scope === "CHAPTER") {
+    isValid = !!(await prisma.classGroup.findFirst({
+      where: {
+        id: data.classGroupId,
+        subject: {
+          chapters: {
+            some: {
+              id: test.chapterId!,
+            },
+          },
+        },
+      },
+    }));
+  }
+
+  if (test.scope === "SUBJECT") {
+    isValid = !!(await prisma.classGroup.findFirst({
+      where: {
+        id: data.classGroupId,
+        subjectId: test.subjectId!,
+      },
+    }));
+  }
+
+  if (test.scope === "COURSE") {
+    isValid = !!(await prisma.classGroup.findFirst({
+      where: {
+        id: data.classGroupId,
+        subject: {
+          courseId: test.courseId!,
+        },
+      },
+    }));
+  }
+
+  if (!isValid) {
+    throw new Error("Test không thuộc lớp này");
+  }
+
+  /**
+   * ✅ ✅ ANTI-CHEAT SESSION TOKEN
+   */
+  const session = await prisma.examSession.findUnique({
+    where: { token: data.sessionToken },
+  });
+
+  if (!session || session.studentId !== studentId) {
+    throw new Error("Session không hợp lệ");
+  }
+
+  if (session.expiresAt < new Date()) {
+    throw new Error("Session đã hết hạn");
+  }
+
+  const snapshot = await prisma.testSnapshot.findUnique({
     where: {
-      id: data.classGroupId,
-      subject: {
-        chapters: {
-          some: {
-            id: test.chapterId!
-          }
-        }
-      }
-    }
-  }));
-}
-
-if (test.scope === "SUBJECT") {
-  isValid = !!(await prisma.classGroup.findFirst({
-    where: {
-      id: data.classGroupId,
-      subjectId: test.subjectId!
-    }
-  }));
-}
-
-if (test.scope === "COURSE") {
-  isValid = !!(await prisma.classGroup.findFirst({
-    where: {
-      id: data.classGroupId,
-      subject: {
-        courseId: test.courseId!
-      }
-    }
-  }));
-}
-
-if (!isValid) {
-  throw new Error("Test không thuộc lớp này");
-}
-
-/**
- * ✅ ✅ ANTI-CHEAT SESSION TOKEN
- */
-const session = await prisma.examSession.findUnique({
-  where: { token: data.sessionToken },
-});
-
-if (!session || session.studentId !== studentId) {
-  throw new Error("Session không hợp lệ");
-}
-
-if (session.expiresAt < new Date()) {
-  throw new Error("Session đã hết hạn");
-}
-
-const snapshot = await prisma.testSnapshot.findUnique({
-  where: {
-    testId_studentId: {
-      testId: data.testId,
-      studentId,
+      testId_studentId: {
+        testId: data.testId,
+        studentId,
+      },
     },
-  },
-});
+  });
 
-if (!snapshot) {
-  throw new Error("Không tìm thấy snapshot");
-}
+  if (!snapshot) {
+    throw new Error("Không tìm thấy snapshot");
+  }
 
-const hash = crypto
-  .createHash("sha256")
-  .update(JSON.stringify(snapshot.data))
-  .digest("hex");
+  const hash = crypto
+    .createHash("sha256")
+    .update(JSON.stringify(snapshot.data))
+    .digest("hex");
 
-if (hash !== snapshot.hash) {
-  throw new Error("Dữ liệu bài thi bị thay đổi");
-}
+  if (hash !== snapshot.hash) {
+    throw new Error("Dữ liệu bài thi bị thay đổi");
+  }
 
+  /**
+   * ✅ ✅ TIMER REALTIME
+   */
+  const startTime = session.createdAt;
+  const maxTime = test.durationMinutes * 60 * 1000;
 
-/**
- * ✅ ✅ TIMER REALTIME
- */
-const startTime = session.createdAt;
-const maxTime = test.durationMinutes * 60 * 1000;
-
-if (Date.now() - startTime.getTime() > maxTime) {
-  throw new Error("Hết thời gian");
-}
+  if (Date.now() - startTime.getTime() > maxTime) {
+    throw new Error("Hết thời gian");
+  }
 
   // ✅ 2. check thời gian
   const now = new Date();
@@ -410,46 +401,46 @@ if (Date.now() - startTime.getTime() > maxTime) {
 
   // ✅ 3. chống làm nhiều lần
   const attemptsCount = await prisma.submission.count({
-  where: {
-    testId: data.testId,
-    studentId,
-  },
-});
+    where: {
+      testId: data.testId,
+      studentId,
+    },
+  });
 
-if (attemptsCount >= test.maxAttempts) {
-  throw new Error("Bạn đã hết số lần làm bài");
-}
+  if (attemptsCount >= test.maxAttempts) {
+    throw new Error("Bạn đã hết số lần làm bài");
+  }
 
   // ✅ 4. check câu hỏi hợp lệ
   // ✅ 4. check câu hỏi hợp lệ (FIXED vs RANDOM)
 
-let validQuestionIds: string[] = [];
+  let validQuestionIds: string[] = [];
 
-if (test.mode === "FIXED") {
-  validQuestionIds = test.testQuestions.map(q => q.questionId);
-} else {
-  // ✅ RANDOM → lấy từ snapshot
-  validQuestionIds = (snapshot.data as any[]).map(q => q.id);
-}
-
-for (const ans of data.answers) {
-  if (!validQuestionIds.includes(ans.questionId)) {
-    throw new Error("Câu hỏi không hợp lệ");
+  if (test.mode === "FIXED") {
+    validQuestionIds = test.testQuestions.map((q) => q.questionId);
+  } else {
+    // ✅ RANDOM → lấy từ snapshot
+    validQuestionIds = (snapshot.data as any[]).map((q) => q.id);
   }
-}
+
+  for (const ans of data.answers) {
+    if (!validQuestionIds.includes(ans.questionId)) {
+      throw new Error("Câu hỏi không hợp lệ");
+    }
+  }
 
   // ✅ 5. check đủ câu
   const totalQuestions =
-  test.mode === "FIXED"
-    ? test.testQuestions.length
-    : (snapshot.data as any[]).length;
+    test.mode === "FIXED"
+      ? test.testQuestions.length
+      : (snapshot.data as any[]).length;
 
-if (data.answers.length !== totalQuestions) {
-  throw new Error("Bạn chưa trả lời đầy đủ câu hỏi");
-}
+  if (data.answers.length !== totalQuestions) {
+    throw new Error("Bạn chưa trả lời đầy đủ câu hỏi");
+  }
 
   // ✅ 6. check duplicate
-  const unique = new Set(data.answers.map(a => a.questionId));
+  const unique = new Set(data.answers.map((a) => a.questionId));
   if (unique.size !== data.answers.length) {
     throw new Error("Duplicate câu trả lời");
   }
@@ -462,7 +453,7 @@ if (data.answers.length !== totalQuestions) {
       classGroupId: data.classGroupId,
 
       userAnswers: {
-        create: data.answers.map(a => ({
+        create: data.answers.map((a) => ({
           questionId: a.questionId,
           answerId: a.answerId,
           essayAnswer: a.essayAnswer,
@@ -488,14 +479,14 @@ export async function autoGrade(submissionId: string) {
           testQuestions: {
             include: {
               question: {
-  include: {
-    answers: {
-      where: {
-        isCorrect: true
-      }
-    }
-  }
-},
+                include: {
+                  answers: {
+                    where: {
+                      isCorrect: true,
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -509,10 +500,10 @@ export async function autoGrade(submissionId: string) {
 
   for (const ans of submission!.userAnswers) {
     const question = submission!.test.testQuestions.find(
-      q => q.questionId === ans.questionId
+      (q) => q.questionId === ans.questionId,
     )?.question;
 
-    const correct = question?.answers.find(a => a.isCorrect);
+    const correct = question?.answers.find((a) => a.isCorrect);
 
     if (correct?.id === ans.answerId) {
       await prisma.userQuestionAnswer.update({
@@ -540,7 +531,7 @@ export async function getOrCreateSnapshot(
   data: {
     testId: string;
     generatorInput: any;
-  }
+  },
 ) {
   const cacheKey = `snapshot:${studentId}:${data.testId}`;
 
@@ -565,42 +556,37 @@ export async function getOrCreateSnapshot(
 
   // ✅ 3. GENERATE MỚI
   // ✅ lấy test để check mode
-const test = await prisma.test.findUnique({
-  where: { id: data.testId },
-  include: {
-    testQuestions: {
-      include: {
-        question: {
-          include: { answers: true },
+  const test = await prisma.test.findUnique({
+    where: { id: data.testId },
+    include: {
+      testQuestions: {
+        include: {
+          question: {
+            include: { answers: true },
+          },
         },
       },
     },
-  },
-});
+  });
 
+  if (!test) {
+    throw new Error("Test không tồn tại");
+  }
 
-if (!test) {
-  throw new Error("Test không tồn tại");
-}
+  let generated;
 
+  if (test?.mode === "FIXED") {
+    generated = test.testQuestions.map((q) => ({
+      ...q.question,
 
-let generated;
-
-if (test?.mode === "FIXED") {
-  generated = test.testQuestions.map(q => ({
-    ...q.question,
-    
-answers: shuffleArray(q.question.answers).map(a => ({
-  id: a.id,
-  answerText: a.answerText,
-
+      answers: shuffleArray(q.question.answers).map((a) => ({
+        id: a.id,
+        answerText: a.answerText,
       })),
-  }));
-} else {
-  generated = await generateTestAutomatically(
-    data.generatorInput
-  );
-}
+    }));
+  } else {
+    generated = await generateTestAutomatically(data.generatorInput);
+  }
 
   // ✅ 4. HASH chống sửa
   const hash = crypto
@@ -624,11 +610,7 @@ answers: shuffleArray(q.question.answers).map(a => ({
   return snapshot.data;
 }
 
-
-export async function createExamSession(
-  studentId: string,
-  testId: string
-) {
+export async function createExamSession(studentId: string, testId: string) {
   const token = crypto.randomBytes(32).toString("hex");
 
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 giờ
@@ -648,7 +630,7 @@ export async function createExamSession(
 export async function logCheat(
   studentId: string,
   testId: string,
-  type: string
+  type: string,
 ) {
   return prisma.cheatLog.create({
     data: {
@@ -662,10 +644,7 @@ export async function logCheat(
 export async function getLeaderboard(testId: string) {
   return prisma.submission.findMany({
     where: { testId, status: "GRADED" },
-    orderBy: [
-      { score: "desc" },
-      { submittedAt: "asc" },
-    ],
+    orderBy: [{ score: "desc" }, { submittedAt: "asc" }],
     take: 50,
     include: {
       student: {

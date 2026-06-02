@@ -204,18 +204,19 @@ export class StudentLearningService {
       }
     } else {
       // Case 2: testId is NOT provided, meaning it's a new random test generation request
-      if (!payload.scope) {
+      const scope = payload.scope;
+      if (!scope) {
         throw new Error("Scope là bắt buộc để tạo bài kiểm tra ngẫu nhiên.");
       }
       generatorInput = {
-        scope: payload.scope,
+        scope,
         chapterId: payload.chapterId,
         subjectId: payload.subjectId,
         courseId: payload.courseId,
         rule: payload.rule,
       };
       const tempTest = await TestService.createTempTest({
-        scope: payload.scope,
+        scope,
         chapterId: payload.chapterId,
         subjectId: payload.subjectId,
         courseId: payload.courseId,

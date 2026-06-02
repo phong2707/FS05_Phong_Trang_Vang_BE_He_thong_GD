@@ -13,6 +13,7 @@ async function seed() {
     await models.certificate.deleteMany({});
     await models.courseRule.deleteMany({});
     await models.attendance.deleteMany({});
+    await models.transaction.deleteMany({});
     
     // ✅ Dọn dẹp Bảng điểm môn học (SubjectGrade - bảng mới)
     await models.subjectGrade.deleteMany({}); 
@@ -521,7 +522,7 @@ const q2 = await models.question.create({
     });
 
     // Thanh toán
-    await models.transaction.create({ data: { studentId: specificStudent.id, courseId: courseWeb.id, amount: 6500000, paymentMethod: "VNPAY", status: "SUCCESS", referenceCode: `VNPAY_WEB_CYLEISH_99` } });
+    await models.transaction.create({ data: { studentId: specificStudent.id, courseId: courseWeb.id, enrollmentId: enrollCyleish.id, amount: 6500000, paymentMethod: "VNPAY", status: "SUCCESS", referenceCode: `VNPAY_WEB_CYLEISH_99` } });
 
     // Review khóa học
     await models.courseReview.create({ data: { courseId: courseWeb.id, studentId: students[0].id, rating: 5, content: "Khóa học rất thực chiến, mentor support nhiệt tình!" } });

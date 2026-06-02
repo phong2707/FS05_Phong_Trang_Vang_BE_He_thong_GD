@@ -546,7 +546,7 @@ model Question {
 
   questionFormat String   @default("SINGLE_CHOICE") @map("question_format")
   content        String
-  explanation    String?
+  explanation Json?
   difficulty     String?  @default("MEDIUM") // EASY | MEDIUM | HARD
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -619,6 +619,7 @@ model Test {
 
   snapshots TestSnapshot[]
 
+  
   @@map("tests")
 }
 
@@ -671,6 +672,8 @@ model Submission {
   studentFileUrl  String? @map("student_file_url") // File báo cáo SV nộp
   teacherFeedback String? @map("teacher_feedback") // Nhận xét của GV
   feedbackFileUrl String? @map("feedback_file_url") // File chấm đỏ của GV
+
+  aiGradingDetail Json?
 
   submittedAt DateTime @default(now()) @map("submitted_at")
 

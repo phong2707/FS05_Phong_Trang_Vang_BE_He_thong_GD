@@ -1,4 +1,8 @@
 import models from "@models";
+import { gradeEssayByAI } from "./ai-grading.service";
+import striptags from "striptags";
+
+
 
 type PrismaClientType = typeof models;
 const prisma = models as PrismaClientType;
@@ -122,61 +126,63 @@ if (!valid) {
   });
 }
 
+
 /**
- * ✅ Teacher chấm bài (FIX MULTI SCOPE)
+ * ✅ AI preview + save grading
  */
 export async function gradeAssignment(
   teacherId: string,
   submissionId: string,
   data: {
-    score: number;
+    score?: number; // teacher override
     feedback?: string;
-    feedbackFile?: string;
+    useAI?: boolean;
+    preview?: boolean; // ✅ preview mode
+    maxMark?: number;
   }
 ) {
+  // ✅ 1. LOAD submission
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
     include: {
-      test: true,
+      userAnswers: true,
+      test: {
+        include: {
+          testQuestions: {
+            include: {
+              question: true,
+            },
+          },
+        },
+      },
     },
   });
 
-  if (!submission) {
-    throw new Error("Submission không tồn tại");
-  }
+  if (!submission) throw new Error("Submission không tồn tại");
 
-  // ✅ FIX: resolve subjectId theo scope
+  // ✅ 2. CHECK PERMISSION
   let subjectId: string | null = null;
 
-  if (submission.test.subjectId) {
-    subjectId = submission.test.subjectId;
-  }
+  if (submission.test.subjectId) subjectId = submission.test.subjectId;
 
   if (!subjectId && submission.test.chapterId) {
     const chapter = await prisma.chapter.findUnique({
       where: { id: submission.test.chapterId },
       select: { subjectId: true },
     });
-
     subjectId = chapter?.subjectId || null;
   }
 
   if (!subjectId && submission.test.courseId) {
     const subject = await prisma.subject.findFirst({
-      where: {
-        courseId: submission.test.courseId,
-      },
+      where: { courseId: submission.test.courseId },
       select: { id: true },
     });
-
     subjectId = subject?.id || null;
   }
 
-  if (!subjectId) {
-    throw new Error("Không xác định được subject");
-  }
+  if (!subjectId) throw new Error("Không xác định được subject");
 
-  // ✅ CHECK teacher có quyền
   const allowed = await prisma.subject.findFirst({
     where: {
       id: subjectId,
@@ -186,20 +192,99 @@ export async function gradeAssignment(
     },
   });
 
-  if (!allowed) {
-    throw new Error("Không có quyền chấm bài");
+  if (!allowed) throw new Error("Không có quyền chấm bài");
+
+  // ✅ 3. GET ESSAY
+  const essay = submission.userAnswers[0]?.essayAnswer;
+  if (!essay) throw new Error("Không có bài tự luận");
+
+  // ✅ 4. GET RUBRIC
+  const question = submission.test.testQuestions[0]?.question;
+
+  
+
+const criteria = (question.explanation || []) as {
+  name: string;
+  max: number;
+}[];
+
+  const cleanEssay = striptags(essay).slice(0, 5000);
+
+  // ✅ 5. AI RESULT
+  let aiResult = null;
+
+  if (data.useAI) {
+    aiResult = await gradeEssayByAI({
+      maxMark: data.maxMark || 10,
+      criteria,
+      essayContent: cleanEssay,
+    });
   }
 
-  return prisma.submission.update({
+  // ✅ 6. BUILD RESPONSE (CHO FE)
+  const buildFeedback = (r: any) => `
+👉 Tổng điểm: ${r.total}
+
+${r.criteria
+  .map(
+    (c: any) =>
+      `- ${c.name}: ${c.score}/${c.max}\n  Nhận xét: ${c.comment}`
+  )
+  .join("\n\n")}
+
+👉 Kết luận:
+${r.finalComment}
+`;
+
+  // ✅ ✅ CASE 1: PREVIEW (KHÔNG LƯU DB)
+  if (data.preview) {
+    return {
+      preview: true,
+      aiScore: aiResult?.total,
+      aiFeedback: aiResult ? buildFeedback(aiResult) : null,
+      criteria: aiResult?.criteria || [],
+      raw: aiResult || null,
+    };
+  }
+
+  // ✅ ✅ CASE 2: SAVE (teacher quyết định)
+
+  const finalScore =
+    data.score !== undefined ? data.score : aiResult?.total;
+
+  const finalFeedback =
+    data.feedback !== undefined
+      ? data.feedback
+      : aiResult
+      ? buildFeedback(aiResult)
+      : null;
+
+  if (finalScore === undefined || finalScore === null) {
+    throw new Error("Chưa có điểm để lưu");
+  }
+
+  const result = await prisma.submission.update({
     where: { id: submissionId },
     data: {
-      score: data.score,
+      score: finalScore,
+      teacherFeedback: finalFeedback,
       status: "GRADED",
       graderId: teacherId,
-      finalScoreStatus: "MANUAL_GRADED",
+      finalScoreStatus:
+        data.useAI && data.score === undefined
+          ? "AI_GRADED"
+          : "MANUAL_GRADED",
+
+      aiGradingDetail: aiResult
+  ? JSON.parse(JSON.stringify(aiResult))
+  : undefined,
+
     },
   });
+
+  return result;
 }
+
 
 /**
  * ✅ Lấy danh sách bài nộp theo test

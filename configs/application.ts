@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import * as channels from "@channels";
 import { ApplicationController } from "@controllers/application.controller";
 import { setupBullMQWorker } from "@lib/jobs/worker";

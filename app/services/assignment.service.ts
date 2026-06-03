@@ -2,8 +2,6 @@ import models from "@models";
 import { gradeEssayByAI } from "./ai-grading.service";
 import striptags from "striptags";
 
-
-
 type PrismaClientType = typeof models;
 const prisma = models as PrismaClientType;
 
@@ -16,7 +14,7 @@ export async function submitAssignment(
     testId: string;
     classGroupId: string;
     essayAnswer: string;
-  }
+  },
 ) {
   const test = await prisma.test.findUnique({
     where: { id: data.testId },
@@ -44,49 +42,34 @@ export async function submitAssignment(
   }
 
   // ✅ CHECK test thuộc class
-  let valid = false;
+  // ✅ resolve subjectId (CHUẨN)
+  let subjectId = test.subjectId;
 
-if (test.chapterId) {
-  valid = !!(await prisma.classGroup.findFirst({
-    where: {
-      id: data.classGroupId,
-      subject: {
-        chapters: {
-          some: {
-            id: test.chapterId
-          }
-        }
-      }
-    }
-  }));
-}
+  if (!subjectId && test.chapterId) {
+    const chapter = await prisma.chapter.findUnique({
+      where: { id: test.chapterId },
+      select: { subjectId: true },
+    });
 
-if (!valid && test.subjectId) {
-  valid = !!(await prisma.classGroup.findFirst({
-    where: {
-      id: data.classGroupId,
-      subjectId: test.subjectId
-    }
-  }));
-}
+    subjectId = chapter?.subjectId || null;
+  }
 
-if (!valid && test.courseId) {
-  valid = !!(await prisma.classGroup.findFirst({
-    where: {
-      id: data.classGroupId,
-      subject: {
-        courseId: test.courseId
-      }
-    }
-  }));
-}
-
-if (!valid) {
-  throw new Error("Test không thuộc lớp");
-}
-
+  // ✅ check class đơn giản (CHUẨN)
   
+if (!subjectId) {
+  throw new Error("Không xác định được subject");
+}
 
+  const validClass = await prisma.classGroup.findFirst({
+    where: {
+      id: data.classGroupId,
+      subjectId: subjectId,
+    },
+  });
+
+  if (!validClass) {
+    throw new Error("Test không thuộc lớp");
+  }
   // ✅ lấy câu hỏi assignment
   const question = test.testQuestions[0];
   if (!question) {
@@ -126,7 +109,6 @@ if (!valid) {
   });
 }
 
-
 /**
  * ✅ AI preview + save grading
  */
@@ -139,7 +121,7 @@ export async function gradeAssignment(
     useAI?: boolean;
     preview?: boolean; // ✅ preview mode
     maxMark?: number;
-  }
+  },
 ) {
   // ✅ 1. LOAD submission
   const submission = await prisma.submission.findUnique({
@@ -201,12 +183,10 @@ export async function gradeAssignment(
   // ✅ 4. GET RUBRIC
   const question = submission.test.testQuestions[0]?.question;
 
-  
-
-const criteria = (question.explanation || []) as {
-  name: string;
-  max: number;
-}[];
+  const criteria = (question.explanation || []) as {
+    name: string;
+    max: number;
+  }[];
 
   const cleanEssay = striptags(essay).slice(0, 5000);
 
@@ -226,10 +206,7 @@ const criteria = (question.explanation || []) as {
 👉 Tổng điểm: ${r.total}
 
 ${r.criteria
-  .map(
-    (c: any) =>
-      `- ${c.name}: ${c.score}/${c.max}\n  Nhận xét: ${c.comment}`
-  )
+  .map((c: any) => `- ${c.name}: ${c.score}/${c.max}\n  Nhận xét: ${c.comment}`)
   .join("\n\n")}
 
 👉 Kết luận:
@@ -249,15 +226,14 @@ ${r.finalComment}
 
   // ✅ ✅ CASE 2: SAVE (teacher quyết định)
 
-  const finalScore =
-    data.score !== undefined ? data.score : aiResult?.total;
+  const finalScore = data.score !== undefined ? data.score : aiResult?.total;
 
   const finalFeedback =
     data.feedback !== undefined
       ? data.feedback
       : aiResult
-      ? buildFeedback(aiResult)
-      : null;
+        ? buildFeedback(aiResult)
+        : null;
 
   if (finalScore === undefined || finalScore === null) {
     throw new Error("Chưa có điểm để lưu");
@@ -271,20 +247,16 @@ ${r.finalComment}
       status: "GRADED",
       graderId: teacherId,
       finalScoreStatus:
-        data.useAI && data.score === undefined
-          ? "AI_GRADED"
-          : "MANUAL_GRADED",
+        data.useAI && data.score === undefined ? "AI_GRADED" : "MANUAL_GRADED",
 
       aiGradingDetail: aiResult
-  ? JSON.parse(JSON.stringify(aiResult))
-  : undefined,
-
+        ? JSON.parse(JSON.stringify(aiResult))
+        : undefined,
     },
   });
 
   return result;
 }
-
 
 /**
  * ✅ Lấy danh sách bài nộp theo test

@@ -89,4 +89,33 @@ export class StudentLearningController extends ApplicationController {
         .json({ success: false, message: error.message });
     }
   }
+
+  /**
+ * API: Lấy danh sách bài test của sinh viên
+ * GET /student/tests
+ */
+async getMyTests() {
+  try {
+    if (!this.currentUser) {
+      return this.res.status(401).json({
+        success: false,
+        message: "Vui lòng đăng nhập",
+      });
+    }
+
+    const tests = await this.studentLearningService.getStudentTests(
+      this.currentUser.id,
+    );
+
+    return this.res.json({
+      success: true,
+      data: tests,
+    });
+  } catch (error: any) {
+    return this.res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
 }

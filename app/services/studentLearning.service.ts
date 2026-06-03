@@ -144,4 +144,77 @@ export class StudentLearningService {
 
     return Array.from(subjectsMap.values());
   }
+  /**
+ * 9. Lấy danh sách bài test cho sinh viên
+ */
+async getStudentTests(studentId: string) {
+  // 1. Lấy classGroup của sinh viên
+  const enrollments = await models.classGroupUser.findMany({
+    where: {
+      userId: studentId,
+      role: "STUDENT",
+    },
+    select: {
+      classGroupId: true,
+      classGroup: {
+        select: {
+          subjectId: true,
+        },
+      },
+    },
+  });
+
+  if (enrollments.length === 0) return [];
+
+  const classGroupIds = enrollments.map(e => e.classGroupId);
+  const subjectIds = enrollments.map(e => e.classGroup.subjectId);
+
+  // 2. Lấy ALL tests theo subject mà student học
+  const tests = await models.test.findMany({
+    where: {
+      chapter: {
+        subjectId: {
+          in: subjectIds,
+        },
+      },
+    },
+    select: {
+      id: true,
+      title: true,
+      testType: true,
+      durationMinutes: true,
+
+      chapter: {
+        select: {
+          title: true,
+          subject: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // 3. Map dữ liệu trả về FE
+  return tests.map((t) => {
+  const match = enrollments.find(
+    (e) => e.classGroup.subjectId === t.chapter?.subject?.id,
+  );
+
+  return {
+    id: t.id,
+    title: t.title,
+    testType: t.testType,
+    durationMinutes: t.durationMinutes,
+
+    subjectName: t.chapter?.subject?.name || "",
+    chapterName: t.chapter?.title || "",
+
+    classGroupId: match?.classGroupId || null,
+  };
+});
+}
 }

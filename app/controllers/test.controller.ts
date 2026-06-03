@@ -67,14 +67,34 @@ export class TestController extends ApplicationController {
   }
 
   async show() {
-    if (!this.requireLogin()) return;
+  if (!this.requireLogin()) return;
 
-    const { id } = this.req.params;
+  const { id } = this.req.params;
 
-    const data = await TestService.getTestDetail(id);
+  const test = await TestService.getTestDetail(id);
 
-    return this.res.json({ success: true, data });
+  if (!test) {
+    return this.res.status(404).json({
+      success: false,
+      message: "Không tìm thấy test",
+    });
   }
+
+  // ✅ ✅ ESSAY → CHO QUA (simple load)
+  if (test.testType === "ESSAY") {
+    return this.res.json({
+      success: true,
+      data: test,
+    });
+  }
+
+  // ✅ ✅ QUIZ → KHÔNG cho load trực tiếp
+  return this.res.status(403).json({
+    success: false,
+    message: "Quiz phải bắt đầu bằng startTest",
+  });
+}
+
 
   async submit() {
     if (!this.requireLogin()) return;

@@ -38,17 +38,27 @@ export class QuestionController extends ApplicationController {
     }
 
     // Đọc params filter + pagination từ query
-    const { format, typeId, search, page, pageSize } = this.req.query as any;
+    const { format, typeId, search, difficulty, page, pageSize } =
+      this.req.query as any;
 
     const filter: any = {};
     if (format) filter.questionFormat = format;
     if (typeId) filter.typeId = typeId;
     if (search) filter.search = search;
+    if (difficulty) filter.difficulty = difficulty;
+    if (chapterId) filter.chapterId = chapterId;
 
     const pagination =
       page || pageSize
         ? { page: Number(page || 1), pageSize: Number(pageSize || 10) }
         : undefined;
+
+    if (!subjectId) {
+      return this.res.status(400).json({
+        success: false,
+        message: "subjectId is required",
+      });
+    }
 
     const data = await QuestionService.listQuestions(
       subjectId,

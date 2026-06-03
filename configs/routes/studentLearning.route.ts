@@ -14,5 +14,7 @@ export class StudentLearningRoute extends RailsRoute {
       "/subjects/:subjectId/materials",
       action(StudentLearningController, "getMaterials"),
     );
+
+    this.get("/tests", action(StudentLearningController, "getMyTests"));
   }
 }

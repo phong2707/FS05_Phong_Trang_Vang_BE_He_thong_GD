@@ -15,7 +15,6 @@ export class StudentLearningRoute extends RailsRoute {
       action(StudentLearningController, "getMaterials"),
     );
 
-<<<<<<<<< Temporary merge branch 1
     // GET /student/grades - Lấy điểm số của sinh viên
     this.get("/grades", action(StudentLearningController, "getMyGrades"));
 
@@ -24,8 +23,7 @@ export class StudentLearningRoute extends RailsRoute {
       "/attendances",
       action(StudentLearningController, "getMyAttendances"),
     );
-=========
+
     this.get("/tests", action(StudentLearningController, "getMyTests"));
->>>>>>>>> Temporary merge branch 2
   }
 }

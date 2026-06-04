@@ -89,9 +89,6 @@ export class StudentLearningController extends ApplicationController {
         .json({ success: false, message: error.message });
     }
   }
-<<<<<<< HEAD
-=======
-
   /**
    * API Lấy điểm số của sinh viên
    */
@@ -238,32 +235,32 @@ export class StudentLearningController extends ApplicationController {
         .json({ success: false, message: error.message });
     }
   }
- * API: Lấy danh sách bài test của sinh viên
- * GET /student/tests
- */
-async getMyTests() {
-  try {
-    if (!this.currentUser) {
-      return this.res.status(401).json({
+  /**
+   * API: Lấy danh sách bài test của sinh viên
+   * GET /student/tests
+   */
+  async getMyTests() {
+    try {
+      if (!this.currentUser) {
+        return this.res.status(401).json({
+          success: false,
+          message: "Vui lòng đăng nhập",
+        });
+      }
+
+      const tests = await this.studentLearningService.getStudentTests(
+        this.currentUser.id,
+      );
+
+      return this.res.json({
+        success: true,
+        data: tests,
+      });
+    } catch (error: any) {
+      return this.res.status(500).json({
         success: false,
-        message: "Vui lòng đăng nhập",
+        message: error.message,
       });
     }
-
-    const tests = await this.studentLearningService.getStudentTests(
-      this.currentUser.id,
-    );
-
-    return this.res.json({
-      success: true,
-      data: tests,
-    });
-  } catch (error: any) {
-    return this.res.status(500).json({
-      success: false,
-      message: error.message,
-    });
   }
-}
->>>>>>> 7213e63e83739ee01123da32f4cc8f78a9c47cda
 }

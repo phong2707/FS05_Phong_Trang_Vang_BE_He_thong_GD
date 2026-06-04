@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       '@google/genai':
-        specifier: ^2.6.0
+        specifier: ^2.7.0
         version: 2.7.0
       '@popperjs/core':
         specifier: ^2.11.8

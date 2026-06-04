@@ -40,34 +40,50 @@ export class AuthController extends ApplicationController {
     try {
       const { idToken } = this.req.body;
       if (!idToken) {
-        return this.res.status(400).json({ success: false, message: "Thiếu mã xác thực Google (idToken)" });
+        return this.res.status(400).json({
+          success: false,
+          message: "Thiếu mã xác thực Google (idToken)",
+        });
       }
 
       // 1. Gửi idToken lên Google để xác thực và lấy thông tin
-      const { data: googleUser } = await axios.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+      const { data: googleUser } = await axios.get(
+        `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`,
+      );
 
       if (!googleUser || !googleUser.email) {
-        return this.res.status(401).json({ success: false, message: "Token Google không hợp lệ" });
+        return this.res
+          .status(401)
+          .json({ success: false, message: "Token Google không hợp lệ" });
       }
 
       // 2. Tìm User trong Database
       const user = await models.user.findFirst({
         where: { email: googleUser.email },
         include: {
-          roles: { include: { role: true } }
-        }
+          roles: { include: { role: true } },
+        },
       });
 
       if (!user) {
-        return this.res.status(404).json({ 
-          success: false, 
-          message: "Email này chưa được đăng ký trong hệ thống." 
+        return this.res.status(404).json({
+          success: false,
+          message: "Email này chưa được đăng ký trong hệ thống.",
         });
       }
 
-      if (user.deleted) return this.res.status(410).json({ success: false, message: "Tài khoản đã bị xóa." });
-      if (user.status === UserStatus.PENDING) return this.res.status(403).json({ success: false, message: "Tài khoản đang chờ duyệt." });
-      if (user.status === UserStatus.INACTIVE) return this.res.status(403).json({ success: false, message: "Tài khoản đã bị khóa." });
+      if (user.deleted)
+        return this.res
+          .status(410)
+          .json({ success: false, message: "Tài khoản đã bị xóa." });
+      if (user.status === UserStatus.PENDING)
+        return this.res
+          .status(403)
+          .json({ success: false, message: "Tài khoản đang chờ duyệt." });
+      if (user.status === UserStatus.INACTIVE)
+        return this.res
+          .status(403)
+          .json({ success: false, message: "Tài khoản đã bị khóa." });
 
       // 3. Tạo JWT Token
       const token = generateToken({ id: user.id, email: user.email });
@@ -93,10 +109,11 @@ export class AuthController extends ApplicationController {
           })),
         },
       });
-
     } catch (error: any) {
       console.error("Lỗi Google Verify:", error.message);
-      return this.res.status(500).json({ success: false, message: "Xác thực Google thất bại." });
+      return this.res
+        .status(500)
+        .json({ success: false, message: "Xác thực Google thất bại." });
     }
   }
   async loginWithGoogleRedirect() {
@@ -186,9 +203,11 @@ export class AuthController extends ApplicationController {
   }
 
   async login() {
-    const { email, password } = await this.params(LoginValidator).permit(
+    // Thêm 'role' để xác định vai trò người dùng muốn đăng nhập
+    const { email, password, role } = await this.params(LoginValidator).permit(
       "email",
       "password",
+      "role",
     );
 
     // ✅ Add timeout to prevent database queries from hanging
@@ -197,7 +216,10 @@ export class AuthController extends ApplicationController {
       timeoutMs: number = 10000,
     ): Promise<T> => {
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Database operation timeout")), timeoutMs),
+        setTimeout(
+          () => reject(new Error("Database operation timeout")),
+          timeoutMs,
+        ),
       );
       return Promise.race([promise, timeoutPromise]);
     };
@@ -279,18 +301,28 @@ export class AuthController extends ApplicationController {
         });
       }
 
+      // ✅ KIỂM TRA VAI TRÒ: Nếu Frontend gửi lên vai trò mong muốn (vd: 'STUDENT' hoặc 'TEACHER'),
+      // hệ thống phải kiểm tra xem người dùng có thực sự sở hữu vai trò đó không.
+      const userRoles = user.roles.map((ur) => ur.role.code);
+      if (role && !userRoles.includes(role)) {
+        return this.res.status(403).json({
+          success: false,
+          message: `Tài khoản này không có quyền truy cập với vai trò ${role}.`,
+        });
+      }
+
       // Tạo JWT token
       const token = generateToken({ id: user.id, email: user.email });
 
       // Cập nhật lastLoginAt
       // ✅ Cập nhật lastLoginAt trực tiếp DB để tránh lệch Prisma Client
-await executeWithTimeout(
-  models.$executeRaw`
+      await executeWithTimeout(
+        models.$executeRaw`
     UPDATE users
     SET last_login_at = CURRENT_TIMESTAMP
     WHERE id = ${user.id}
   `,
-);
+      );
 
       // Trả về response JSON với user info và roles
       return this.res.json({
@@ -303,16 +335,13 @@ await executeWithTimeout(
           firstName: user.firstName,
           lastName: user.lastName,
           status: user.status,
-          roles: user.roles.map((ur) => ({
-            id: ur.role.id,
-            code: ur.role.code,
-            name: ur.role.name,
-          })),
+          roles: user.roles.map((ur) => ur.role),
+          // ✅ Trả về vai trò mà người dùng đã chọn để đăng nhập
+          loggedInAs: role || userRoles[0], // Ưu tiên vai trò được gửi lên, nếu không thì lấy vai trò đầu tiên
         },
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Có lỗi xảy ra";
+      const message = error instanceof Error ? error.message : "Có lỗi xảy ra";
       return this.res.status(500).json({
         success: false,
         message,
@@ -397,8 +426,7 @@ await executeWithTimeout(
         },
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Lỗi server";
+      const message = error instanceof Error ? error.message : "Lỗi server";
       return this.res.status(500).json({
         success: false,
         error: message,
@@ -426,7 +454,7 @@ await executeWithTimeout(
         "phoneNumber",
         "address",
         "gender",
-        "avatarUrl"
+        "avatarUrl",
       );
 
       // 3. Cập nhật vào DB
@@ -447,7 +475,7 @@ await executeWithTimeout(
           address: true,
           gender: true,
           status: true,
-        }
+        },
       });
 
       return this.res.json({
@@ -469,25 +497,27 @@ await executeWithTimeout(
       // Vô hiệu hóa refresh token nếu có
       await models.password.updateMany({
         where: { userId: this.currentUser.id, type: "REFRESH_TOKEN" },
-        data: { deleted: true }
+        data: { deleted: true },
       });
     }
     this.logoutUser();
     return this.res.json({
       success: true,
-      message: this.t("flash.logged_out")
+      message: this.t("flash.logged_out"),
     });
   }
 
-async forgotPassword() {
-    const { email } = await this.params(ForgotPasswordValidator).permit("email");
+  async forgotPassword() {
+    const { email } = await this.params(ForgotPasswordValidator).permit(
+      "email",
+    );
     const user = await models.user.findFirst({
-      where: { email, status: UserStatus.ACTIVE, deleted: false }
+      where: { email, status: UserStatus.ACTIVE, deleted: false },
     });
     if (!user) {
       return this.res.status(404).json({
         success: false,
-        message: "Email không tồn tại trong hệ thống"
+        message: "Email không tồn tại trong hệ thống",
       });
     }
 
@@ -498,80 +528,104 @@ async forgotPassword() {
     // 2. Xóa OTP cũ và tạo mới trong Database
     await models.password.updateMany({
       where: { userId: user.id, type: "OTP" },
-      data: { deleted: true }
+      data: { deleted: true },
     });
 
     await models.password.create({
       data: {
         userId: user.id,
         password: hashedOtp,
-        type: "OTP"
-      }
+        type: "OTP",
+      },
     });
 
     // 3. Gửi mail thực tế
     try {
-      // Sử dụng UserMailer để gửi mã OTP. 
+      // Sử dụng UserMailer để gửi mã OTP.
       // Bạn có thể tùy chỉnh nội dung hoặc dùng hàm passwordReset có sẵn.
       await UserMailer.passwordReset(user.email, otp);
       // Log ra console để bạn vẫn có thể kiểm tra nhanh trong terminal khi dev
-      console.log(`\x1b[33m%s\x1b[0m`, `[SENT EMAIL OTP to ${user.email}]: ${otp}`);
+      console.log(
+        `\x1b[33m%s\x1b[0m`,
+        `[SENT EMAIL OTP to ${user.email}]: ${otp}`,
+      );
 
       return this.res.json({
         success: true,
-        message: "Mã xác thực đã được gửi tới email của bạn"
+        message: "Mã xác thực đã được gửi tới email của bạn",
       });
     } catch (error) {
       // Xử lý trường hợp lỗi cấu hình SMTP hoặc lỗi mạng khi gửi mail
       console.error("Lỗi khi gửi email:", error);
       return this.res.status(500).json({
         success: false,
-        message: "Không thể gửi email lúc này. Vui lòng thử lại sau."
+        message: "Không thể gửi email lúc này. Vui lòng thử lại sau.",
       });
     }
   }
 
   async verifyOtp() {
-    const { email, otp } = await this.params(VerifyOtpValidator).permit("email", "otp");
+    const { email, otp } = await this.params(VerifyOtpValidator).permit(
+      "email",
+      "otp",
+    );
     const user = await models.user.findUnique({
       where: { email },
       include: {
         passwords: {
           where: { type: "OTP", deleted: false },
           orderBy: { createdAt: Prisma.SortOrder.desc },
-          take: 1
-        }
-      }
+          take: 1,
+        },
+      },
     });
 
     if (!user || user.passwords.length === 0) {
-      return this.res.status(400).json({ success: false, message: "Mã OTP đã hết hạn" });
+      return this.res
+        .status(400)
+        .json({ success: false, message: "Mã OTP đã hết hạn" });
     }
 
-    const isValid = await Security.verifyPassword(otp, user.passwords[0].password);
+    const isValid = await Security.verifyPassword(
+      otp,
+      user.passwords[0].password,
+    );
     if (!isValid) {
-      return this.res.status(400).json({ success: false, message: "Mã OTP không chính xác" });
+      return this.res
+        .status(400)
+        .json({ success: false, message: "Mã OTP không chính xác" });
     }
 
     // Vô hiệu hóa OTP sau khi dùng
-    await models.password.update({ where: { id: user.passwords[0].id }, data: { deleted: true } });
+    await models.password.update({
+      where: { id: user.passwords[0].id },
+      data: { deleted: true },
+    });
 
     // Tạo resetToken ngắn hạn (15 phút)
-    const resetToken = generateToken({ id: user.id, action: "RESET_PASSWORD" }, "15m");
+    const resetToken = generateToken(
+      { id: user.id, action: "RESET_PASSWORD" },
+      "15m",
+    );
 
     return this.res.json({ success: true, resetToken });
   }
 
   async resetPassword() {
-    const { password, passwordConfirmation } = await this.params(ResetPasswordValidator).permit(
-      "password", "passwordConfirmation"
-    );
+    const { password, passwordConfirmation } = await this.params(
+      ResetPasswordValidator,
+    ).permit("password", "passwordConfirmation");
 
     const token = this.req.headers.authorization?.split(" ")[1];
-    if (!token) return this.res.status(401).json({ success: false, message: "Thiếu token xác thực" });
+    if (!token)
+      return this.res
+        .status(401)
+        .json({ success: false, message: "Thiếu token xác thực" });
 
     if (password !== passwordConfirmation) {
-      return this.res.status(422).json({ success: false, message: "Mật khẩu xác nhận không khớp" });
+      return this.res
+        .status(422)
+        .json({ success: false, message: "Mật khẩu xác nhận không khớp" });
     }
 
     try {
@@ -585,15 +639,20 @@ async forgotPassword() {
             updateMany: { where: { deleted: false }, data: { deleted: true } },
             create: {
               password: await Security.hashPassword(password),
-              type: PasswordType.PASSWORD
-            }
-          }
-        }
+              type: PasswordType.PASSWORD,
+            },
+          },
+        },
       });
 
-      return this.res.json({ success: true, message: "Đổi mật khẩu thành công" });
+      return this.res.json({
+        success: true,
+        message: "Đổi mật khẩu thành công",
+      });
     } catch (err) {
-      return this.res.status(401).json({ success: false, message: "Phiên làm việc đã hết hạn" });
+      return this.res
+        .status(401)
+        .json({ success: false, message: "Phiên làm việc đã hết hạn" });
     }
   }
 
@@ -745,9 +804,9 @@ async forgotPassword() {
       });
       const isMatch = currentPwd
         ? await Security.verifyPassword(
-          oldPassword as string,
-          currentPwd.password,
-        )
+            oldPassword as string,
+            currentPwd.password,
+          )
         : false;
 
       if (!isMatch) {
@@ -794,26 +853,39 @@ async forgotPassword() {
     try {
       // 1. Kiểm tra đăng nhập
       if (!this.currentUser) {
-        return this.res.status(401).json({ success: false, message: "Vui lòng đăng nhập" });
+        return this.res
+          .status(401)
+          .json({ success: false, message: "Vui lòng đăng nhập" });
       }
 
       // 2. Lấy và validate dữ liệu
-      const { oldPassword, password, passwordConfirmation } = await this.params(UpdatePasswordValidator).permit(
-        "oldPassword", "password", "passwordConfirmation"
-      );
+      const { oldPassword, password, passwordConfirmation } = await this.params(
+        UpdatePasswordValidator,
+      ).permit("oldPassword", "password", "passwordConfirmation");
 
       // 3. Kiểm tra mật khẩu cũ trong DB
       const currentPwd = await models.password.findFirst({
-        where: { userId: this.currentUser.id, deleted: false, type: PasswordType.PASSWORD },
+        where: {
+          userId: this.currentUser.id,
+          deleted: false,
+          type: PasswordType.PASSWORD,
+        },
       });
 
-      if (!currentPwd || !(await Security.verifyPassword(oldPassword, currentPwd.password))) {
-        return this.res.status(400).json({ success: false, message: "Mật khẩu cũ không chính xác" });
+      if (
+        !currentPwd ||
+        !(await Security.verifyPassword(oldPassword, currentPwd.password))
+      ) {
+        return this.res
+          .status(400)
+          .json({ success: false, message: "Mật khẩu cũ không chính xác" });
       }
 
       // 4. Kiểm tra khớp mật khẩu mới
       if (password !== passwordConfirmation) {
-        return this.res.status(422).json({ success: false, message: "Mật khẩu xác nhận không khớp" });
+        return this.res
+          .status(422)
+          .json({ success: false, message: "Mật khẩu xác nhận không khớp" });
       }
 
       // 5. Cập nhật mật khẩu mới
@@ -824,15 +896,20 @@ async forgotPassword() {
             updateMany: { where: { deleted: false }, data: { deleted: true } },
             create: {
               password: await Security.hashPassword(password),
-              type: PasswordType.PASSWORD
-            }
-          }
-        }
+              type: PasswordType.PASSWORD,
+            },
+          },
+        },
       });
 
-      return this.res.json({ success: true, message: "Đổi mật khẩu thành công" });
+      return this.res.json({
+        success: true,
+        message: "Đổi mật khẩu thành công",
+      });
     } catch (error: any) {
-      return this.res.status(500).json({ success: false, message: error.message });
+      return this.res
+        .status(500)
+        .json({ success: false, message: error.message });
     }
   }
 

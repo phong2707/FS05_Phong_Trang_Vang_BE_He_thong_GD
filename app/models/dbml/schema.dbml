@@ -394,8 +394,11 @@ Table questions {
   typeId String [not null]
   questionFormat String [not null, default: 'SINGLE_CHOICE']
   content String [not null]
-  explanation Json
+  explanation String
+<<<<<<< HEAD
+=======
   difficulty String [default: 'MEDIUM']
+>>>>>>> 7213e63e83739ee01123da32f4cc8f78a9c47cda
   createdAt DateTime [default: `now()`, not null]
   chapter chapters
   subject subjects

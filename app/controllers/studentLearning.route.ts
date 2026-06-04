@@ -24,6 +24,16 @@ export class StudentLearningRoute extends RailsRoute {
       action(StudentLearningController, "getMyAttendances"),
     );
 
-    this.get("/tests", action(StudentLearningController, "getMyTests"));
+    // POST /student/assignments/submit - Sinh viên nộp bài tập tự luận
+    this.post(
+      "/assignments/submit",
+      action(StudentLearningController, "submitAssignment"),
+    );
+
+    // POST /student/tests/start - Sinh viên bắt đầu làm bài kiểm tra
+    this.post("/tests/start", action(StudentLearningController, "startTest"));
+
+    // POST /student/tests/submit - Sinh viên nộp bài kiểm tra
+    this.post("/tests/submit", action(StudentLearningController, "submitTest"));
   }
 }

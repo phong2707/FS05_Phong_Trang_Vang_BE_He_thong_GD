@@ -32,5 +32,11 @@ export class TestRoute extends RailsRoute {
 
     // ✅ SUBMIT
     this.post("/tests/submit", action(TestController, "submit"));
+//generate
+    this.post("/tests/generate",action(TestController, "generateTest"));
+
+    this.post("/tests/start", action(TestController, "startTest"));
+
+    this.get("/tests/:id/leaderboard", action(TestController, "leaderboard"));
   }
 }

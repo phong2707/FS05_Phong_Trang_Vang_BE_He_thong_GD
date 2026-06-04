@@ -13,6 +13,7 @@ import { QuestionRoute } from "./question.route";
 import { TestRoute } from "./test.route";
 import { AssignmentRoute } from "./assignment.route";
 import { EnrollmentRoute } from "./enrollment.route";
+import { StudentLearningRoute } from "../../studentLearning.route";
 
 export class ApiV1Route extends RailsRoute {
   public draw() {
@@ -39,6 +40,7 @@ export class ApiV1Route extends RailsRoute {
     this.path("/", QuestionRoute.draw());
     this.path("/", TestRoute.draw());
     this.path("/", AssignmentRoute.draw());
+    this.path("/student", StudentLearningRoute.draw());
 
     // Permission routes
     this.get("/permissions/me", action(MyPermissionController, "index"));

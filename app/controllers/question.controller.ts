@@ -29,21 +29,16 @@ export class QuestionController extends ApplicationController {
     const subjectId = normalize(this.req.query.subjectId);
     const courseId = normalize(this.req.query.courseId);
 
-    // Áp dụng Cách 1: Kiểm tra tồn tại của subjectId trước khi thực hiện logic tiếp theo
-    if (!subjectId) {
-      return this.res.status(400).json({
-        success: false,
-        message: "Thiếu thông tin môn học (subjectId).",
-      });
-    }
-
     // Đọc params filter + pagination từ query
-    const { format, typeId, search, page, pageSize } = this.req.query as any;
+    const { format, typeId, search, difficulty, page, pageSize } = this.req
+      .query as any;
 
     const filter: any = {};
     if (format) filter.questionFormat = format;
     if (typeId) filter.typeId = typeId;
     if (search) filter.search = search;
+    if (difficulty) filter.difficulty = difficulty;
+    if (chapterId) filter.chapterId = chapterId;
 
     const pagination =
       page || pageSize

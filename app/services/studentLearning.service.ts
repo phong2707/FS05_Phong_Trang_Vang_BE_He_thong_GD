@@ -144,43 +144,4 @@ export class StudentLearningService {
 
     return Array.from(subjectsMap.values());
   }
-
-  /**
-   * 4. Lấy danh sách điểm số môn học của sinh viên
-   */
-  async getStudentGrades(studentId: string) {
-    return models.subjectGrade.findMany({
-      where: { userId: studentId },
-      include: {
-        subject: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    });
-  }
-
-  /**
-   * 5. Lấy lịch sử điểm danh của sinh viên
-   */
-  async getStudentAttendances(studentId: string) {
-    return models.attendance.findMany({
-      where: { userId: studentId },
-      include: {
-        schedule: {
-          include: {
-            classGroup: {
-              select: {
-                id: true,
-                name: true,
-                subject: { select: { id: true, name: true } },
-              },
-            },
-          },
-        },
-      },
-    });
-  }
 }

@@ -41,26 +41,43 @@ export class AssignmentController extends ApplicationController {
   /**
    * ✅ chấm bài
    */
-  async grade() {
-    if (!this.requireLogin()) return;
+ async grade() {
+  if (!this.requireLogin()) return;
 
-    try {
-      const result = await AssignmentService.gradeAssignment(
-        this.currentUser!.id,
-        this.req.params.id,
-        this.req.body
-      );
+  try {
+    const submissionId = this.req.params.id;
 
-      return this.res.json({ success: true, data: result });
+    const {
+      score,
+      feedback,
+      useAI,
+      preview,
+      maxMark,
+    } = this.req.body;
 
-    } catch (e: any) {
-      return this.res.status(400).json({
-        success: false,
-        message: e.message,
-      });
-    }
+    const result = await AssignmentService.gradeAssignment(
+      this.currentUser!.id,
+      submissionId,
+      {
+        score,
+        feedback,
+        useAI,
+        preview,
+        maxMark,
+      }
+    );
+
+    return this.res.json({
+      success: true,
+      data: result,
+    });
+  } catch (e: any) {
+    return this.res.status(400).json({
+      success: false,
+      message: e.message,
+    });
   }
-
+}
   /**
    * ✅ danh sách bài nộp
    */

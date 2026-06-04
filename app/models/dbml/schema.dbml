@@ -395,7 +395,6 @@ Table questions {
   questionFormat String [not null, default: 'SINGLE_CHOICE']
   content String [not null]
   explanation String
-  difficulty String [default: 'MEDIUM']
   createdAt DateTime [default: `now()`, not null]
   chapter chapters
   subject subjects
@@ -479,6 +478,7 @@ Table submissions {
   studentFileUrl String
   teacherFeedback String
   feedbackFileUrl String
+  aiGradingDetail Json
   submittedAt DateTime [default: `now()`, not null]
   test tests [not null]
   student users [not null]

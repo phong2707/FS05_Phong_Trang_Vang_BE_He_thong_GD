@@ -17,8 +17,7 @@ export class AdminUserController extends AdminController {
     const filterRole = String(this.req.query.role || ""); // 🆕 Lấy thêm query role
     
     const page = Math.max(1, parseInt(String(this.req.query.page || "1"), 10));
-    const perPage = Math.min(50, Math.max(10, parseInt(String(this.req.query.perPage || "10"), 10)));
-
+    const perPage = Math.min(50, Math.max(1, parseInt(String(this.req.query.perPage || "7"), 10)));
     // Xây dựng điều kiện lọc (WHERE)
     const where: Prisma.UserWhereInput = { deleted: false };
     
@@ -43,7 +42,8 @@ export class AdminUserController extends AdminController {
       };
     }
 
-    const [users, total] = await Promise.all([
+    // 🟢 THAY THẾ ĐOẠN PROMISE.ALL CŨ BẰNG ĐOẠN NÀY:
+    const [users, total, activeCount, pendingCount, inactiveCount] = await Promise.all([
       models.user.findMany({
         where,
         include: { roles: { include: { role: true } } },
@@ -51,7 +51,11 @@ export class AdminUserController extends AdminController {
         skip: (page - 1) * perPage,
         take: perPage,
       }),
-      models.user.count({ where }),
+      models.user.count({ where }), // Tổng số theo bộ lọc
+      // 👇 Đếm số lượng thật tế của toàn hệ thống (Bỏ qua phân trang)
+      models.user.count({ where: { deleted: false, status: 'ACTIVE' } }),
+      models.user.count({ where: { deleted: false, status: 'PENDING' } }),
+      models.user.count({ where: { deleted: false, status: 'INACTIVE' } }),
     ]);
 
     const roles = await models.role.findMany({ where: { deleted: false } });
@@ -61,6 +65,9 @@ export class AdminUserController extends AdminController {
       users,
       roles,
       total,
+      activeCount,   // 👈 Gửi số thật sang Frontend
+      pendingCount,  // 👈 Gửi số thật sang Frontend
+      inactiveCount, // 👈 Gửi số thật sang Frontend
       page,
       perPage,
       totalPages: Math.ceil(total / perPage),

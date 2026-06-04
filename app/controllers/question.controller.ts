@@ -28,6 +28,17 @@ export class QuestionController extends ApplicationController {
     const chapterId = normalize(this.req.query.chapterId);
     const subjectId = normalize(this.req.query.subjectId);
     const courseId = normalize(this.req.query.courseId);
+<<<<<<<<< Temporary merge branch 1
+
+    // Áp dụng Cách 1: Kiểm tra tồn tại của subjectId trước khi thực hiện logic tiếp theo
+    if (!subjectId) {
+      return this.res.status(400).json({
+        success: false,
+        message: "Thiếu thông tin môn học (subjectId).",
+      });
+    }
+=========
+>>>>>>>>> Temporary merge branch 2
 
     // Đọc params filter + pagination từ query
     const { format, typeId, search, difficulty, page, pageSize } = this.req
@@ -44,6 +55,16 @@ export class QuestionController extends ApplicationController {
       page || pageSize
         ? { page: Number(page || 1), pageSize: Number(pageSize || 10) }
         : undefined;
+<<<<<<<<< Temporary merge branch 1
+=========
+
+    if (!subjectId) {
+      return this.res.status(400).json({
+        success: false,
+        message: "subjectId is required",
+      });
+    }
+>>>>>>>>> Temporary merge branch 2
 
     const data = await QuestionService.listQuestions(
       subjectId,

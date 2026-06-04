@@ -12,7 +12,7 @@ export class RevenueRoute extends RailsRoute {
       "/dashboard",
       action(RevenueController, "getDashboard"),
       {
-        setPermissionForAny: ["REVENUE_VIEW", "ADMIN_MANAGE"],
+        setPermissionForAny: ["AM::READ"], // 🟢 Đã đổi thành AM::READ
       }
     );
 
@@ -21,7 +21,7 @@ export class RevenueRoute extends RailsRoute {
       "/overview",
       action(RevenueController, "getOverview"),
       {
-        setPermissionForAny: ["REVENUE_VIEW", "ADMIN_MANAGE"],
+        setPermissionForAny: ["AM::READ"], // 🟢 Đã đổi thành AM::READ
       }
     );
 
@@ -30,7 +30,7 @@ export class RevenueRoute extends RailsRoute {
       "/transactions",
       action(RevenueController, "getTransactions"),
       {
-        setPermissionForAny: ["REVENUE_VIEW", "ADMIN_MANAGE"],
+        setPermissionForAny: ["AM::READ"], // 🟢 Đã đổi thành AM::READ
       }
     );
 
@@ -39,7 +39,7 @@ export class RevenueRoute extends RailsRoute {
       "/top-courses",
       action(RevenueController, "getTopCourses"),
       {
-        setPermissionForAny: ["REVENUE_VIEW", "ADMIN_MANAGE"],
+        setPermissionForAny: ["AM::READ"], // 🟢 Đã đổi thành AM::READ
       }
     );
 
@@ -48,7 +48,7 @@ export class RevenueRoute extends RailsRoute {
       "/by-date-range",
       action(RevenueController, "getRevenueByDateRange"),
       {
-        setPermissionForAny: ["REVENUE_VIEW", "ADMIN_MANAGE"],
+        setPermissionForAny: ["AM::READ"], // 🟢 Đã đổi thành AM::READ
       }
     );
   }

@@ -193,7 +193,7 @@ export async function createQuestion(
  * ✅ Danh sách câu hỏi
  */
 export async function listQuestions(
-  subjectId: string,
+  subjectId: string | undefined,
   teacherId: string,
   filter?: {
     questionFormat?: string;

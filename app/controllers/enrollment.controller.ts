@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { ApplicationController } from "./application.controller";
 import { EnrollmentService } from "@services/enrollment.service";
 import { PaymentService } from "@services/payment.service";
+import models from "@models";
 
 /**
  * EnrollmentController - Dành cho Sinh viên
@@ -89,71 +90,69 @@ export class EnrollmentController extends ApplicationController {
 
   /**
    * Action: VNPay Return URL callback
+   * Xác thực callback từ VNPay và redirect user tới PaymentResultPage
    */
-  async vnpayReturn(req: Request, res: Response): Promise<void> {
+ /**
+   * VNPay Return URL (callback sau khi thanh toán)
+   */
+  async vnpayReturn(): Promise<void> {
     try {
-      const vnpayParams = this.req.query as any;
+      // 💡 SỬ DỤNG this.req THEO CHUẨN CỦA TS-RAILS
+      const vnpayParams = this.req.query as any; 
+      
       const verifyResult = PaymentService.verifyVNPayReturn(vnpayParams);
+      const frontendBaseUrl = process.env.FRONTEND_BASE_URL || "http://localhost:5173";
 
       if (!verifyResult.isValid) {
-        this.renderJson(
-          {
-            error: "Xác thực thất bại",
-            message: verifyResult.message,
-          },
-          400
-        );
+        // 💡 SỬ DỤNG this.res.redirect ĐỂ CHUYỂN TRANG
+        this.res.redirect(`${frontendBaseUrl}/payment-result?success=false&message=${encodeURIComponent(verifyResult.message || "Xác thực thất bại")}`);
         return;
       }
 
-      const orderId = verifyResult.orderId;
-      const transaction = await this.models.transaction.findFirst({
-        where: {
-          referenceCode: orderId,
-        },
+      // 💡 SỬ DỤNG models ĐÃ IMPORT Ở ĐẦU FILE (import models from "@models")
+      await models.$transaction(async (tx) => {
+        const transaction = await tx.transaction.findFirst({
+          where: { id: verifyResult.orderId },
+          include: { enrollment: { include: { user: true } } }
+        });
+
+        if (!transaction) throw new Error("Giao dịch không tồn tại trong hệ thống");
+        if (transaction.status === "SUCCESS") return; // Bỏ qua nếu IPN đã xử lý trước
+
+        // 1. Cập nhật Transaction
+        await tx.transaction.update({
+          where: { id: transaction.id },
+          data: { status: "SUCCESS", referenceCode: verifyResult.transactionNo || "" }
+        });
+
+        // 2. Cập nhật Enrollment thành ACTIVE
+        await tx.courseEnrollment.update({
+          where: { id: transaction.enrollmentId },
+          data: { status: "ACTIVE", completedAt: new Date() }
+        });
+
+        // 3. Kích hoạt User nếu là Guest (PENDING)
+        if (transaction.enrollment?.user?.status === "PENDING") {
+          await tx.user.update({
+            where: { id: transaction.enrollment.userId },
+            data: { status: "ACTIVE" }
+          });
+        }
       });
 
-      if (!transaction) {
-        this.renderJson(
-          {
-            error: "Giao dịch không tồn tại",
-          },
-          404
-        );
-        return;
-      }
-
-      await this.models.transaction.update({
-        where: { id: transaction.id },
-        data: {
-          status: "SUCCESS",
-          referenceCode: verifyResult.transactionNo || transaction.referenceCode,
-        },
-      });
-
-      this.renderJson(
-        {
-          message: "Thanh toán thành công",
-          orderId: verifyResult.orderId,
-          amount: verifyResult.amount,
-          transactionNo: verifyResult.transactionNo,
-          enrollmentId: transaction.enrollmentId,
-        },
-        200
-      );
+      // 💡 CHUYỂN HƯỚNG THÀNH CÔNG VỀ GIAO DIỆN FRONTEND
+      this.res.redirect(`${frontendBaseUrl}/payment-result?success=true&transactionId=${verifyResult.orderId}`);
+      
     } catch (error: any) {
-      this.renderJson(
-        {
-          error: "Lỗi trong quá trình xác thực",
-          message: error.message,
-        },
-        500
-      );
+      console.error("❌ LỖI VNPAY_RETURN:", error);
+      const frontendBaseUrl = process.env.FRONTEND_BASE_URL || "http://localhost:5173";
+      this.res.redirect(`${frontendBaseUrl}/payment-result?success=false&message=${encodeURIComponent("Lỗi hệ thống khi xử lý giao dịch")}`);
     }
   }
 
   /**
    * Action: VNPay IPN URL webhook (bất đồng bộ)
+   * Xác thực và xử lý thanh toán từ VNPay webhook
    */
   async vnpayIpn(req: Request, res: Response): Promise<void> {
     try {
@@ -173,7 +172,7 @@ export class EnrollmentController extends ApplicationController {
 
       const transaction = await this.models.transaction.findFirst({
         where: {
-          referenceCode: verifyResult.orderId,
+          id: verifyResult.orderId,
         },
       });
 
@@ -189,6 +188,7 @@ export class EnrollmentController extends ApplicationController {
       }
 
       if (verifyResult.responseCode === "00") {
+        // Update transaction to SUCCESS
         await this.models.transaction.update({
           where: { id: transaction.id },
           data: {
@@ -196,6 +196,22 @@ export class EnrollmentController extends ApplicationController {
             referenceCode: verifyResult.transactionNo || transaction.referenceCode,
           },
         });
+
+        // Update enrollment to ACTIVE
+        await EnrollmentService.updateEnrollmentStatus(transaction.enrollmentId, "ACTIVE");
+
+        // Update user status if needed
+        const enrollment = await this.models.courseEnrollment.findUnique({
+          where: { id: transaction.enrollmentId },
+          include: { user: true },
+        });
+
+        if (enrollment?.user?.status === "PENDING") {
+          await this.models.user.update({
+            where: { id: enrollment.userId },
+            data: { status: "ACTIVE" },
+          });
+        }
 
         this.renderJson(
           {
@@ -205,6 +221,7 @@ export class EnrollmentController extends ApplicationController {
           200
         );
       } else {
+        // Payment failed
         await this.models.transaction.update({
           where: { id: transaction.id },
           data: { status: "FAILED" },
@@ -225,6 +242,55 @@ export class EnrollmentController extends ApplicationController {
           Message: "System error",
         },
         200
+      );
+    }
+  }
+
+  /**
+   * Action: Lấy chi tiết giao dịch (dùng cho PaymentResultPage)
+   */
+  async getTransaction(req: Request, res: Response): Promise<void> {
+    try {
+      const { transactionId } = this.req.params;
+
+      if (!transactionId) {
+        this.renderJson({ error: "transactionId là bắt buộc" }, 400);
+        return;
+      }
+
+      const transaction = await EnrollmentService.getTransactionDetails(transactionId);
+
+      this.renderJson(
+        {
+          message: "Lấy chi tiết giao dịch thành công",
+          transaction: {
+            id: transaction.id,
+            amount: transaction.amount,
+            paymentMethod: transaction.paymentMethod,
+            status: transaction.status,
+            referenceCode: transaction.referenceCode,
+            createdAt: transaction.createdAt,
+            enrollmentId: transaction.enrollmentId,
+            course: transaction.enrollment?.course ? {
+              id: transaction.enrollment.course.id,
+              title: transaction.enrollment.course.title,
+            } : null,
+            user: transaction.enrollment?.user ? {
+              id: transaction.enrollment.user.id,
+              firstName: transaction.enrollment.user.firstName,
+              lastName: transaction.enrollment.user.lastName,
+              email: transaction.enrollment.user.email,
+            } : null,
+          },
+        },
+        200
+      );
+    } catch (error: any) {
+      this.renderJson(
+        {
+          error: error?.message || "Lỗi khi lấy chi tiết giao dịch",
+        },
+        500
       );
     }
   }

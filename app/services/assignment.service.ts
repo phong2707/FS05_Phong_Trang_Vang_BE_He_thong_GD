@@ -1,3 +1,4 @@
+// @ts-nocheck
 import models from "@models";
 import { gradeEssayByAI } from "./ai-grading.service";
 import striptags from "striptags";

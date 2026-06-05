@@ -9,8 +9,13 @@ importers:
   .:
     dependencies:
       '@google/genai':
+<<<<<<< HEAD
         specifier: ^2.6.0
         version: 2.8.0
+=======
+        specifier: ^2.7.0
+        version: 2.7.0
+>>>>>>> c8b6b147aec356501b6714ba1711753013231efd
       '@popperjs/core':
         specifier: ^2.11.8
         version: 2.11.8
@@ -741,8 +746,13 @@ packages:
   '@gar/promisify@1.1.3':
     resolution: {integrity: sha512-k2Ty1JcVojjJFwrg/ThKi2ujJ7XNLYaFGNB/bWT9wGR+oSMJHMa5w+CUq6p/pVrKeNNgA7pCqEcjSnHVoqJQFw==}
 
+<<<<<<< HEAD
   '@google/genai@2.8.0':
     resolution: {integrity: sha512-pc2ayxqO5+O7AvnHBqpNHIk7PAZkHZgL31tbyx0gJZBSS9qPYiQoqwK7oYOw/ePmG6QY4EMSu+304vD5QlhXAw==}
+=======
+  '@google/genai@2.7.0':
+    resolution: {integrity: sha512-tv0DRtcndt2oEhBYy+5mA0TaXH98+L1Gt0AP9unBfH7DP20KhB7+O3QqAN1Lz+laMARGTHS7BFQSNpLbl4gm1g==}
+>>>>>>> c8b6b147aec356501b6714ba1711753013231efd
     engines: {node: '>=20.0.0'}
     peerDependencies:
       '@modelcontextprotocol/sdk': ^1.25.2
@@ -5902,7 +5912,11 @@ snapshots:
   '@gar/promisify@1.1.3':
     optional: true
 
+<<<<<<< HEAD
   '@google/genai@2.8.0':
+=======
+  '@google/genai@2.7.0':
+>>>>>>> c8b6b147aec356501b6714ba1711753013231efd
     dependencies:
       google-auth-library: 10.6.2
       p-retry: 4.6.2

@@ -95,12 +95,26 @@ export class EnrollmentService {
       });
 
       // 5. Nếu VNPAY thì tạo link thanh toán
+      let vnpayUrl: string | undefined = undefined;
       if (paymentMethod === "VNPAY") {
-        const vnpayUrl = PaymentService.createVNPayUrl(amount, `Thanh toan khoa hoc ${courseId}`, transaction.id);
-        return { enrollment, transaction, vnpayUrl };
+        try {
+          vnpayUrl = PaymentService.createVNPayUrl(
+            amount,
+            `Thanh toan khoa hoc ${courseId}`,
+            transaction.id
+          );
+        } catch (error: any) {
+          logger.error("Error creating VNPay URL:", error);
+          throw new Error("Không thể tạo link thanh toán VNPay");
+        }
       }
 
-      return { enrollment, transaction };
+      return {
+        message: "Đăng ký khóa học thành công",
+        enrollment,
+        transaction,
+        ...(vnpayUrl ? { vnpayUrl } : {}),
+      };
     });
   }
 
@@ -140,5 +154,38 @@ export class EnrollmentService {
       logger.info(`Admin ${adminId} approved enrollment ${enrollmentId}`);
       return enrollment;
     });
+  }
+
+  /**
+   * Cập nhật trạng thái enrollment
+   */
+  static async updateEnrollmentStatus(enrollmentId: string, status: string) {
+    return await prisma.courseEnrollment.update({
+      where: { id: enrollmentId },
+      data: { status },
+    });
+  }
+
+  /**
+   * Lấy chi tiết giao dịch (dùng cho Payment Result Page)
+   */
+  static async getTransactionDetails(transactionId: string) {
+    const transaction = await prisma.transaction.findUnique({
+      where: { id: transactionId },
+      include: {
+        enrollment: {
+          include: {
+            course: true,
+            user: true,
+          },
+        },
+      },
+    });
+
+    if (!transaction) {
+      throw new Error("Giao dịch không tồn tại");
+    }
+
+    return transaction;
   }
 }

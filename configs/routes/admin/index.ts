@@ -7,6 +7,7 @@ import { AdminRoleRoute } from "./adminRole.route";
 import { AdminUserRoute } from "./adminUser.route";
 import { AdminCourseRoute } from "./adminCourse.route";
 import { RevenueRoute } from "./revenue.route";
+import { AdminDashboardController } from "@controllers/admin/dashboard.controller";
 
 export class AdminRoute extends RailsRoute {
   public draw() {
@@ -17,6 +18,7 @@ export class AdminRoute extends RailsRoute {
     this.path("/features", AdminFeatureRoute.draw());
     this.path("/courses", AdminCourseRoute.draw());
     this.path("/revenue", RevenueRoute.draw());
+    this.path("/dashboard/summary", action(AdminDashboardController, "summary"));
 
     this.resource(AdminController, {
       only: [RestActions.Index],

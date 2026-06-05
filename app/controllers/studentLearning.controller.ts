@@ -235,6 +235,38 @@ export class StudentLearningController extends ApplicationController {
         .json({ success: false, message: error.message });
     }
   }
+
+  /**
+   * API Xem chi tiết một tài liệu học tập
+   * GET /student/materials/:materialId
+   */
+  async getMaterialDetail() {
+    try {
+      if (!this.currentUser) {
+        return this.res
+          .status(401)
+          .json({ success: false, message: "Vui lòng đăng nhập" });
+      }
+
+      const materialId = this.req.params.materialId;
+      if (!materialId) {
+        return this.res
+          .status(400)
+          .json({ success: false, message: "Thiếu materialId" });
+      }
+
+      const material = await this.studentLearningService.getMaterialDetail(
+        this.currentUser.id,
+        materialId,
+      );
+
+      return this.res.json({ success: true, data: material });
+    } catch (error: any) {
+      return this.res
+        .status(403)
+        .json({ success: false, message: error.message });
+    }
+  }
   /**
    * API: Lấy danh sách bài test của sinh viên
    * GET /student/tests

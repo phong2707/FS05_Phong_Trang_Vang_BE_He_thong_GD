@@ -41,4 +41,26 @@ export class UserMailer extends ApplicationMailer {
       }),
     });
   }
+
+  /**
+   * Gửi mật khẩu tạm thời cho Guest sau khi đăng ký
+   */
+  static async sendGuestPassword(
+    to: string,
+    rawPassword: string,
+    fullName: string,
+  ): Promise<void> {
+    const appName = i18next.t("app_name");
+
+    await this.deliver({
+      to,
+      subject: i18next.t("mailer.subjects.guest_credentials", { appName }),
+      html: this.render("user.mailer/guest_password", {
+        to,
+        rawPassword,
+        fullName,
+        appName,
+      }),
+    });
+  }
 }

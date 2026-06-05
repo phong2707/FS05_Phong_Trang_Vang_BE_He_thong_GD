@@ -1,6 +1,8 @@
-import models from "@models";
-import { logger } from "ts-rails";
+import models, { PasswordType } from "@models";
+import { logger, Security } from "ts-rails";
 import { PaymentService } from "./payment.service";
+import { UserMailer } from "@mailers";
+import crypto from "crypto";
 
 // Sử dụng PrismaClient từ generated/prisma
 type PrismaClientType = typeof models;
@@ -27,7 +29,11 @@ export class EnrollmentService {
     paymentMethod: PaymentMethod,
     guestInput?: GuestEnrollInput
   ) {
-    return await prisma.$transaction(async (tx) => {
+    let guestPasswordRaw: string | null = null;
+    let createdGuestEmail: string | null = null;
+    let createdGuestFullName: string | null = null;
+
+    const result = await prisma.$transaction(async (tx) => {
       let resolvedUserId = userId;
 
       if (!resolvedUserId) {
@@ -45,15 +51,32 @@ export class EnrollmentService {
         });
 
         if (!guestUser) {
-          guestUser = await tx.user.create({
-            data: {
-              email: guestEmail,
-              firstName: guestFirstName,
-              lastName: guestLastName,
-              phoneNumber: guestPhoneNumber || null,
-              status: "PENDING",
-            },
-          });
+          // find STUDENT role id
+          const roleRec = await tx.role.findFirst({ where: { code: "STUDENT" } });
+          const roleId = roleRec?.id;
+
+          // generate random password and hash it
+          guestPasswordRaw = crypto.randomBytes(4).toString("hex");
+          const hashed = await Security.hashPassword(guestPasswordRaw);
+
+          const createData: any = {
+            email: guestEmail,
+            firstName: guestFirstName,
+            lastName: guestLastName,
+            phoneNumber: guestPhoneNumber || null,
+            status: "PENDING",
+            passwords: { create: { password: hashed, type: PasswordType.PASSWORD } },
+            wallet: { create: { balance: 0 } },
+          };
+
+          if (roleId) {
+            createData.roles = { create: { roleId } };
+          }
+
+          guestUser = await tx.user.create({ data: createData });
+
+          createdGuestEmail = guestEmail;
+          createdGuestFullName = [guestFirstName, guestLastName].filter(Boolean).join(" ");
         }
 
         resolvedUserId = guestUser.id;
@@ -116,6 +139,17 @@ export class EnrollmentService {
         ...(vnpayUrl ? { vnpayUrl } : {}),
       };
     });
+
+    // After successful transaction, send guest password email (if created)
+    if (guestPasswordRaw && createdGuestEmail) {
+      try {
+        await UserMailer.sendGuestPassword(createdGuestEmail, guestPasswordRaw, createdGuestFullName || createdGuestEmail);
+      } catch (err: any) {
+        logger.error("Failed to send guest password email:", err);
+      }
+    }
+
+    return result;
   }
 
   /**

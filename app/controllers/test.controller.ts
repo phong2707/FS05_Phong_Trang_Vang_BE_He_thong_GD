@@ -67,34 +67,33 @@ export class TestController extends ApplicationController {
   }
 
   async show() {
-  if (!this.requireLogin()) return;
+    if (!this.requireLogin()) return;
 
-  const { id } = this.req.params;
+    const { id } = this.req.params;
 
-  const test = await TestService.getTestDetail(id);
+    const test = await TestService.getTestDetail(id);
 
-  if (!test) {
-    return this.res.status(404).json({
+    if (!test) {
+      return this.res.status(404).json({
+        success: false,
+        message: "Không tìm thấy test",
+      });
+    }
+
+    // ✅ ✅ ESSAY → CHO QUA (simple load)
+    if (test.testType === "ESSAY") {
+      return this.res.json({
+        success: true,
+        data: test,
+      });
+    }
+
+    // ✅ ✅ QUIZ → KHÔNG cho load trực tiếp
+    return this.res.status(403).json({
       success: false,
-      message: "Không tìm thấy test",
+      message: "Quiz phải bắt đầu bằng startTest",
     });
   }
-
-  // ✅ ✅ ESSAY → CHO QUA (simple load)
-  if (test.testType === "ESSAY") {
-    return this.res.json({
-      success: true,
-      data: test,
-    });
-  }
-
-  // ✅ ✅ QUIZ → KHÔNG cho load trực tiếp
-  return this.res.status(403).json({
-    success: false,
-    message: "Quiz phải bắt đầu bằng startTest",
-  });
-}
-
 
   async submit() {
     if (!this.requireLogin()) return;
@@ -144,7 +143,24 @@ export class TestController extends ApplicationController {
       const tempTest = await TestService.createTempTest(this.req.body);
       finalTestId = tempTest.id;
     }
+const test = await TestService.getTestDetail(finalTestId);
 
+// ✅ CHẶN CHƯA ĐẾN GIỜ
+const now = new Date();
+
+if (test?.startTime && now < test.startTime) {
+  return this.res.status(400).json({
+    success: false,
+    message: "Chưa đến giờ làm bài",
+  });
+}
+
+if (test?.endTime && now > test.endTime) {
+  return this.res.status(400).json({
+    success: false,
+    message: "Đã hết giờ làm bài",
+  });
+}
     // ✅ tạo session
     const session = await TestService.createExamSession(
       this.currentUser!.id,
@@ -156,9 +172,12 @@ export class TestController extends ApplicationController {
       this.currentUser!.id,
       {
         testId: finalTestId,
-        generatorInput: this.req.body,
+        generatorInput: null, // ❌ không dùng nữa
       },
     );
+
+    // ✅ LẤY TEST
+   
 
     return this.res.json({
       success: true,
@@ -166,6 +185,11 @@ export class TestController extends ApplicationController {
         testId: finalTestId,
         sessionToken: session.token,
         questions: snapshot,
+
+        // ✅ THÊM 2 DÒNG NÀY
+        durationMinutes: test?.durationMinutes || 30,
+        startTime: test?.startTime,
+        endTime: test?.endTime,
       },
     });
   }

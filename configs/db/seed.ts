@@ -132,9 +132,17 @@ async function seed() {
       },
     });
 
+    const hikhanhStudent = await models.user.create({
+      data: {
+        firstName: "Hi", lastName: "Khanh", email: "hikhanh29@gmail.com", status: UserStatus.ACTIVE, phoneNumber: "0911222333", avatarUrl: "https://i.pravatar.cc/150?u=hikhanh29",
+        passwords: { create: { password: hashedPassword, type: PasswordType.PASSWORD } },
+        roles: { create: { roleId: roleStudent.id } }, wallet: { create: { balance: 12000000 } },
+      },
+    });
+
     // Tạo 150 sinh viên ảo
     const numFakeStudents = 150;
-    const students = [demoStudent]; // Nhét student thật vào đầu mảng
+    const students = [demoStudent, hikhanhStudent]; // Nhét student thật vào đầu mảng
     for (let i = 1; i <= numFakeStudents; i++) {
       const student = await models.user.create({
         data: {
@@ -165,6 +173,12 @@ async function seed() {
         adminId: admin.id, categoryId: catIT.id, thumbnailUrl: "https://placehold.co/800x400/16a34a/white?text=Automation+Test",
       },
     });
+    const coursePython = await models.course.create({
+      data: {
+        title: "Python Data Analysis thực chiến", description: "Nắm pandas, numpy, trực quan hóa dữ liệu.", price: 6200000, discountPrice: 5200000, status: "PUBLISHED",
+        adminId: admin.id, categoryId: catIT.id, thumbnailUrl: "https://placehold.co/800x400/7c3aed/white?text=Python+Data",
+      },
+    });
 
     // Môn học (Teacher Phong dạy hết để demo cho dễ)
     const subFrontend = await models.subject.create({
@@ -175,6 +189,9 @@ async function seed() {
     });
     const subQA = await models.subject.create({
       data: { courseId: courseQA.id, name: "Kiểm thử Tự động", sortOrder: 1, allowReview: true, teachers: { create: [{ teacherId: teachers[0].id, type: "MAIN" }] } },
+    });
+    const subPython = await models.subject.create({
+      data: { courseId: coursePython.id, name: "Python cho Phân tích dữ liệu", sortOrder: 1, allowReview: true, teachers: { create: [{ teacherId: teachers[0].id, type: "MAIN" }] } },
     });
 
     // Chương & Video & Taskman
@@ -208,6 +225,14 @@ async function seed() {
       data: { scope: "CHAPTER", chapterId: chapFE1.id, title: "Bài tập thực hành Chương 1", testType: "ESSAY", durationMinutes: 120, testQuestions: { create: [{ questionId: q1.id, points: 10, sortOrder: 1 }] } },
     });
 
+    const chapPython1 = await models.chapter.create({ data: { subjectId: subPython.id, title: "Chương 1: Python & Pandas nền tảng", sortOrder: 1 } });
+    const qPython = await models.question.create({
+      data: { scope: "CHAPTER", chapterId: chapPython1.id, teacherId: teachers[0].id, typeId: typeEssay.id, questionFormat: "ESSAY", content: "Phân tích file CSV điểm thi và xuất biểu đồ.", difficulty: "MEDIUM" },
+    });
+    const testPython1 = await models.test.create({
+      data: { scope: "CHAPTER", chapterId: chapPython1.id, title: "Bài tập Python Data Chương 1", testType: "ESSAY", durationMinutes: 90, testQuestions: { create: [{ questionId: qPython.id, points: 10, sortOrder: 1 }] } },
+    });
+
     // ==========================================
     // 6. LỚP HỌC VÀ PHÂN BỔ DỮ LIỆU ĐỒNG LOẠT (ĐIỂM NHẤN DEMO)
     // ==========================================
@@ -218,6 +243,9 @@ async function seed() {
     });
     const classQA_Group = await models.classGroup.create({
       data: { subjectId: subQA.id, name: "Lớp QA Automation K46", startDate: new Date("2026-01-01"), endDate: new Date("2026-11-30"), maxStudents: 100, roomLink: "https://meet.google.com/qa" },
+    });
+    const classPython = await models.classGroup.create({
+      data: { subjectId: subPython.id, name: "Lớp Python Data K47", startDate: new Date("2026-02-01"), endDate: new Date("2026-12-01"), maxStudents: 80, roomLink: "https://meet.google.com/python-data" },
     });
 
     // Tạo lịch học cho lớp K45 (Của Teacher 0) - Tạo 20 buổi học trong quá khứ và 5 buổi tương lai
@@ -244,11 +272,51 @@ async function seed() {
       await models.classGroupUser.create({ data: { userId: student.id, classGroupId: classFS.id, role: "STUDENT" } });
 
       // Ghi danh ngẫu nhiên khóa QA (Demo user chắc chắn được ghi danh)
-      if (isDemoUser || Math.random() > 0.5) {
+      if (isDemoUser || student.email === "hikhanh29@gmail.com" || Math.random() > 0.5) {
         const enrollQA = await models.courseEnrollment.create({
           data: { userId: student.id, courseId: courseQA.id, status: "ACTIVE", progress: isDemoUser ? 10 : Math.floor(Math.random() * 50) },
         });
         await models.classGroupUser.create({ data: { userId: student.id, classGroupId: classQA_Group.id, role: "STUDENT" } });
+
+        if (student.email === "hikhanh29@gmail.com") {
+          const enrollPython = await models.courseEnrollment.create({
+            data: { userId: student.id, courseId: coursePython.id, status: "ACTIVE", progress: 20 },
+          });
+          await models.classGroupUser.create({ data: { userId: student.id, classGroupId: classPython.id, role: "STUDENT" } });
+          await models.transaction.create({
+            data: { studentId: student.id, courseId: coursePython.id, enrollmentId: enrollPython.id, amount: 5200000, paymentMethod: "VNPAY", status: "SUCCESS", referenceCode: `VNPAY_PY_HIKHANH`, createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+          });
+
+          await models.submission.create({
+            data: {
+              testId: testChap1.id, studentId: student.id, classGroupId: classFS.id,
+              status: "SUBMITTED", finalScoreStatus: "PENDING", score: null,
+              studentFileUrl: "https://github.com/hikhanh29/react-assignment-pending",
+              graderId: null, teacherFeedback: null,
+              submittedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+            },
+          });
+
+          await models.submission.create({
+            data: {
+              testId: testPython1.id, studentId: student.id, classGroupId: classPython.id,
+              status: "GRADED", finalScoreStatus: "GRADED_BY_TEACHER", score: 8.5,
+              studentFileUrl: "https://github.com/hikhanh29/python-data-graded",
+              graderId: teachers[0].id, teacherFeedback: "Phân tích tốt, cần tối ưu biểu đồ.",
+              submittedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000)
+            },
+          });
+
+          await models.submission.create({
+            data: {
+              testId: testPython1.id, studentId: student.id, classGroupId: classPython.id,
+              status: "SUBMITTED", finalScoreStatus: "PENDING", score: null,
+              studentFileUrl: "https://github.com/hikhanh29/python-data-pending",
+              graderId: null, teacherFeedback: null,
+              submittedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+            },
+          });
+        }
         
         // Transaction QA
         const randomDaysQA = Math.floor(Math.random() * 180); // Rải rác trong 6 tháng

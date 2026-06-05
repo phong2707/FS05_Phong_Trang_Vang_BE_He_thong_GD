@@ -9,16 +9,24 @@ export class CurrentUserMiddleware extends ApplicationMiddleware {
       let userId: string | undefined;
 
       // 1. ƯU TIÊN KIỂM TRA TOKEN (Dành cho API & Client)
-        const authHeader = req.headers.authorization;
-        if (authHeader && authHeader.startsWith("Bearer ")) {
-          const token = authHeader.split(" ")[1];
-          try {
+      // Hỗ trợ cả 'Authorization' và 'authorization'
+      const authHeader = (req.headers.authorization || (req.headers as any).Authorization) as string | undefined;
+
+      // Debug tạm để truy vết lỗi thiếu token ở API grade
+      if (req.path.includes("/assignments/") && req.path.includes("/grade")) {
+        console.log("--- BẮT ĐẦU KIỂM TRA ĐĂNG NHẬP ---");
+        console.log("1. Header Token:", authHeader ? "CÓ" : "TRỐNG");
+      }
+
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        const token = authHeader.split(" ")[1];
+        try {
           const decoded = verifyToken(token) as any;
-            userId = decoded?.id;
-          } catch (jwtError) {
+          userId = decoded?.id;
+        } catch (jwtError) {
           console.warn("[AUTH] Token không hợp lệ hoặc hết hạn");
-          }
         }
+      }
 
       // 2. NẾU KHÔNG CÓ TOKEN, KIỂM TRA SESSION (Dành cho trình duyệt/Web View)
       if (!userId && (req as any).session?.userId) {
@@ -49,8 +57,13 @@ export class CurrentUserMiddleware extends ApplicationMiddleware {
         req.user = null;
       }
       } else {
-      req.user = null;
-    }
+        req.user = null;
+      }
+
+      // Debug tạm để truy vết lỗi thiếu req.user ở API grade
+      if (req.path.includes("/assignments/") && req.path.includes("/grade")) {
+        console.log("2. Đầu vào req.user:", req.user ? "CÓ" : "KHÔNG CÓ (NULL)");
+      }
 
       next();
     } catch (error) {

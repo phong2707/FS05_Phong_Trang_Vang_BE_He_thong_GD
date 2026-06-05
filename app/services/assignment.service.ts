@@ -1,4 +1,3 @@
-// @ts-nocheck
 import models from "@models";
 import { gradeEssayByAI } from "./ai-grading.service";
 import striptags from "striptags";
@@ -194,7 +193,9 @@ export async function gradeAssignment(
   // ✅ 5. AI RESULT
   let aiResult = null;
 
-  if (data.useAI) {
+  // Nếu bật preview/useAI thì cần gọi AI;
+  // nếu không bật AI thì vẫn cho phép teacher chấm tay.
+  if (data.useAI || data.preview) {
     aiResult = await gradeEssayByAI({
       maxMark: data.maxMark || 10,
       criteria,
@@ -236,7 +237,7 @@ ${r.finalComment}
         ? buildFeedback(aiResult)
         : null;
 
-  if (finalScore === undefined || finalScore === null) {
+  if (finalScore === undefined || finalScore === null || Number.isNaN(Number(finalScore))) {
     throw new Error("Chưa có điểm để lưu");
   }
 
@@ -249,10 +250,6 @@ ${r.finalComment}
       graderId: teacherId,
       finalScoreStatus:
         data.useAI && data.score === undefined ? "AI_GRADED" : "MANUAL_GRADED",
-
-      aiGradingDetail: aiResult
-        ? JSON.parse(JSON.stringify(aiResult))
-        : undefined,
     },
   });
 

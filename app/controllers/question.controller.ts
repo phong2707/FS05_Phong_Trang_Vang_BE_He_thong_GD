@@ -13,6 +13,15 @@ export class QuestionController extends ApplicationController {
 
       return this.res.json({ success: true, data });
     } catch (e: any) {
+      console.error("[QUESTION][CREATE] payload:", {
+        scope: this.req.body?.scope,
+        chapterId: this.req.body?.chapterId,
+        subjectId: this.req.body?.subjectId,
+        courseId: this.req.body?.courseId,
+        typeId: this.req.body?.typeId,
+        questionFormat: this.req.body?.questionFormat,
+      });
+
       return this.res.status(400).json({
         success: false,
         message: e.message,

@@ -159,14 +159,45 @@ export async function createTest(
       throw new Error("Thiếu questionIds");
     }
 
+    const questionWhere: any = {
+      id: { in: data.questionIds },
+    };
+
+    if (data.scope === "CHAPTER") {
+      const chapter = await prisma.chapter.findUnique({
+        where: { id: data.chapterId! },
+        include: { subject: true },
+      });
+
+      const courseId = chapter?.subject.courseId;
+
+      questionWhere.OR = [
+        { chapterId: data.chapterId },
+        { subjectId },
+        ...(courseId ? [{ courseId }] : []),
+      ].filter(Boolean);
+    }
+
+    if (data.scope === "SUBJECT") {
+      const subject = await prisma.subject.findUnique({
+        where: { id: data.subjectId! },
+      });
+
+      const courseId = subject?.courseId;
+
+      questionWhere.OR = [
+        { subjectId: data.subjectId },
+        ...(courseId ? [{ courseId }] : []),
+      ].filter(Boolean);
+    }
+
+    if (data.scope === "COURSE") {
+      questionWhere.courseId = data.courseId;
+    }
     const questions = await prisma.question.findMany({
-      where: {
-        id: { in: data.questionIds },
-        subjectId,
-      },
+      where: questionWhere,
       select: { id: true },
     });
-
     if (questions.length !== data.questionIds.length) {
       throw new Error("Có câu hỏi không thuộc đúng phạm vi");
     }
@@ -334,59 +365,58 @@ export async function generateQuestionsForStudent(
     [];
   let sortOrder = 1;
 
-for (const rule of test.generationRules) {
-  let whereCondition: any = {};
+  for (const rule of test.generationRules) {
+    let whereCondition: any = {};
 
-  if (test.scope === "CHAPTER") {
-    whereCondition = {
-      OR: [
-        { chapterId: test.chapterId },
-        { subjectId },
-        ...(test.courseId ? [{ courseId: test.courseId }] : [])
-      ].filter(Boolean),
-    };
-  }
+    if (test.scope === "CHAPTER") {
+      whereCondition = {
+        OR: [
+          { chapterId: test.chapterId },
+          { subjectId },
+          ...(test.courseId ? [{ courseId: test.courseId }] : []),
+        ].filter(Boolean),
+      };
+    }
 
-  if (test.scope === "SUBJECT") {
-    whereCondition = {
-      OR: [
-        { subjectId: test.subjectId },
-        { courseId: test.courseId },
-      ].filter(Boolean),
-    };
-  }
+    if (test.scope === "SUBJECT") {
+      whereCondition = {
+        OR: [{ subjectId: test.subjectId }, { courseId: test.courseId }].filter(
+          Boolean,
+        ),
+      };
+    }
 
-  if (test.scope === "COURSE") {
-    whereCondition = {
-      courseId: test.courseId,
-    };
-  }
+    if (test.scope === "COURSE") {
+      whereCondition = {
+        courseId: test.courseId,
+      };
+    }
 
-  const questions = await prisma.question.findMany({
-    where: whereCondition,
-    select: { id: true },
-  });
-
-  // ✅ DEBUG (bạn hỏi thì đặt ở đây)
-  console.log("SCOPE:", test.scope);
-  console.log("WHERE:", whereCondition);
-  console.log("FOUND:", questions.length);
-
-  if (questions.length < rule.totalCount) {
-    throw new Error("Ngân hàng câu hỏi không đủ theo generation rule");
-  }
-
-  const shuffled = shuffle(questions);
-  const picked = shuffled.slice(0, rule.totalCount);
-
-  for (const q of picked) {
-    selected.push({
-      questionId: q.id,
-      points: rule.pointsPerQuestion,
-      sortOrder: sortOrder++,
+    const questions = await prisma.question.findMany({
+      where: whereCondition,
+      select: { id: true },
     });
+
+    // ✅ DEBUG (bạn hỏi thì đặt ở đây)
+    console.log("SCOPE:", test.scope);
+    console.log("WHERE:", whereCondition);
+    console.log("FOUND:", questions.length);
+
+    if (questions.length < rule.totalCount) {
+      throw new Error("Ngân hàng câu hỏi không đủ theo generation rule");
+    }
+
+    const shuffled = shuffle(questions);
+    const picked = shuffled.slice(0, rule.totalCount);
+
+    for (const q of picked) {
+      selected.push({
+        questionId: q.id,
+        points: rule.pointsPerQuestion,
+        sortOrder: sortOrder++,
+      });
+    }
   }
-}
   return selected;
 }
 
@@ -506,24 +536,16 @@ export async function submitTest(
     throw new Error("Không tìm thấy snapshot");
   }
 
-  
+  const snapshotIds = (snapshot.data as any[]).map((q) => q.id);
+  const answerIds = data.answers.map((a) => a.questionId);
+  console.log("==== DEBUG SUBMIT ====");
+  console.log("SNAPSHOT LENGTH:", snapshotIds.length);
+  console.log("ANSWER LENGTH:", answerIds.length);
 
-const snapshotIds = (snapshot.data as any[]).map(q => q.id);
-const answerIds = data.answers.map(a => a.questionId);
-console.log("==== DEBUG SUBMIT ====");
-console.log("SNAPSHOT LENGTH:", snapshotIds.length);
-console.log("ANSWER LENGTH:", answerIds.length);
+  console.log("SNAPSHOT IDS:", snapshotIds);
+  console.log("ANSWER IDS:", answerIds);
 
-console.log("SNAPSHOT IDS:", snapshotIds);
-console.log("ANSWER IDS:", answerIds);
-
-const missing = snapshotIds.filter(id => !answerIds.includes(id));
-console.log("MISSING IDS:", missing);
-
-if (missing.length > 0) {
-  throw new Error("Bạn chưa trả lời đầy đủ câu hỏi");
-}
-
+ 
   const hash = crypto
     .createHash("sha256")
     .update(JSON.stringify(snapshot.data))
@@ -582,18 +604,18 @@ if (missing.length > 0) {
     }));
     expectedCount = test.testQuestions.length;
   } else {
-  if (!snapshot) {
-    throw new Error("Không tìm thấy snapshot");
+    if (!snapshot) {
+      throw new Error("Không tìm thấy snapshot");
+    }
+
+    expectedQuestions = (snapshot.data as any[]).map((q, index) => ({
+      questionId: q.id,
+      points: 1, // hoặc lấy dynamic nếu bạn có rule points
+      sortOrder: index + 1,
+    }));
+
+    expectedCount = expectedQuestions.length;
   }
-
-  expectedQuestions = (snapshot.data as any[]).map((q, index) => ({
-    questionId: q.id,
-    points: 1, // hoặc lấy dynamic nếu bạn có rule points
-    sortOrder: index + 1,
-  }));
-
-  expectedCount = expectedQuestions.length;
-}
 
   const validQuestionIds = expectedQuestions.map((q) => q.questionId);
 
@@ -604,7 +626,6 @@ if (missing.length > 0) {
     }
   }
 
-  
   // ✅ 5. check đủ câu
   const totalQuestions = test.isAutoGenerated
     ? (snapshot.data as any[]).length
@@ -716,16 +737,15 @@ export async function getTestWithGeneratedQuestions(
   }));
 
   return {
-  id: test.id,
-  title: test.title,
+    id: test.id,
+    title: test.title,
 
-  durationMinutes: test.durationMinutes,   // ✅ THÊM
-  startTime: test.startTime,               // ✅ THÊM
-  endTime: test.endTime,                   // ✅ THÊM
+    durationMinutes: test.durationMinutes, // ✅ THÊM
+    startTime: test.startTime, // ✅ THÊM
+    endTime: test.endTime, // ✅ THÊM
 
-  testQuestions: dynamicQuestions,
-};
-
+    testQuestions: dynamicQuestions,
+  };
 }
 
 /**
@@ -822,38 +842,36 @@ export async function autoGrade(submissionId: string) {
   if (!submission) throw new Error("Submission không tồn tại");
 
   const snapshot = await prisma.testSnapshot.findUnique({
-  where: {
-    testId_studentId: {
-      testId: submission.testId,
-      studentId: submission.studentId,
+    where: {
+      testId_studentId: {
+        testId: submission.testId,
+        studentId: submission.studentId,
+      },
     },
-  },
-});
-
+  });
 
   let score = 0;
   const total = submission.userAnswers.length;
 
-  for (const ans of submission.userAnswers) {
-  let question;
-
   // ✅ TEST AUTO → dùng snapshot
-  
-if (submission.test.isAutoGenerated) {
-  if (!snapshot) {
-    throw new Error("Thiếu snapshot khi chấm auto test");
-  }
 
+  for (const ans of submission.userAnswers) {
+    let question;
 
- const questions = (snapshot.data || []) as any[];
-  question = questions.find((q) => q.id === ans.questionId);
-} else {
-    // ✅ TEST CỐ ĐỊNH → dùng DB
-    question = submission.test.testQuestions.find(
-      (q) => q.questionId === ans.questionId,
-    )?.question;
+    if (submission.test.isAutoGenerated) {
+      if (!snapshot) {
+        throw new Error("Thiếu snapshot khi chấm auto test");
+      }
 
-    const correct = question?.answers.find((a: any) => a.isCorrect);
+      const questions = (snapshot.data || []) as any[];
+      question = questions.find((q) => q.id === ans.questionId);
+    } else {
+      question = submission.test.testQuestions.find(
+        (q) => q.questionId === ans.questionId,
+      )?.question;
+    }
+
+    const correct = question?.answers?.find((a: any) => a.isCorrect);
 
     if (correct?.id === ans.answerId) {
       await prisma.userQuestionAnswer.update({
@@ -863,17 +881,6 @@ if (submission.test.isAutoGenerated) {
       score++;
     }
   }
-
-  const correct = question?.answers?.find((a: any) => a.isCorrect);
-
-  if (correct?.id === ans.answerId) {
-    await prisma.userQuestionAnswer.update({
-      where: { id: ans.id },
-      data: { isCorrect: true },
-    });
-    score++;
-  }
-}
 
   const finalScore = total === 0 ? 0 : (score / total) * 10;
 
@@ -999,12 +1006,12 @@ export async function createExamSession(studentId: string, testId: string) {
   const token = crypto.randomBytes(32).toString("hex");
 
   const test = await prisma.test.findUnique({
-  where: { id: testId },
-});
+    where: { id: testId },
+  });
 
-const expiresAt = new Date(
-  Date.now() + (test?.durationMinutes || 60) * 60 * 1000
-);
+  const expiresAt = new Date(
+    Date.now() + (test?.durationMinutes || 60) * 60 * 1000,
+  );
 
   const session = await prisma.examSession.create({
     data: {

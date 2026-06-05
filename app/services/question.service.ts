@@ -30,6 +30,14 @@ export async function createQuestion(
 ) {
   const scope = data.scope || "CHAPTER";
 
+  if (!data.typeId?.trim()) {
+    throw new Error("Thiếu loại câu hỏi (typeId)");
+  }
+
+  if (!["CHAPTER", "SUBJECT", "COURSE"].includes(scope)) {
+    throw new Error("scope không hợp lệ. Chỉ hỗ trợ CHAPTER | SUBJECT | COURSE");
+  }
+
   /**
    * ✅ ENFORCE SCOPE RULE
    */
@@ -129,6 +137,11 @@ export async function createQuestion(
    * ✅ ESSAY
    */
   if (format === "ESSAY") {
+    const normalizedTypeId =
+      data.typeId === "2593e6a-04f4-4e18-b7f0-579be716ea27"
+        ? "22593e6a-04f4-4e18-b7f0-579be716ea27"
+        : data.typeId;
+
     return prisma.question.create({
       data: {
         scope,
@@ -137,7 +150,7 @@ export async function createQuestion(
         courseId,
 
         teacherId,
-        typeId: data.typeId,
+        typeId: normalizedTypeId,
         questionFormat: "ESSAY",
         content: data.content,
         explanation: data.explanation,
@@ -166,6 +179,11 @@ export async function createQuestion(
     orderIndex: i + 1,
   }));
 
+  const normalizedTypeId =
+    data.typeId === "2593e6a-04f4-4e18-b7f0-579be716ea27"
+      ? "22593e6a-04f4-4e18-b7f0-579be716ea27"
+      : data.typeId;
+
   return prisma.question.create({
     data: {
       scope,
@@ -174,7 +192,7 @@ export async function createQuestion(
       courseId,
 
       teacherId,
-      typeId: data.typeId,
+      typeId: normalizedTypeId,
       questionFormat: format,
       content: data.content,
       explanation: data.explanation,

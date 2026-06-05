@@ -13,26 +13,30 @@ const chapterId = chapter.id;
 const subjectId = chapter.subject.id;
 const courseId = chapter.subject.courseId;
 
+// 1. Tìm Giáo viên
 const teacher = await models.user.findFirst({
   where: {
     roles: {
-      some: {
-        role: {
-          code: "TEACHER"
-        }
-      }
+      some: { role: { code: "TEACHER" } }
     }
   }
 });
 
-const type = await models.questionType.findFirst({
-  where: {
-    name: "Trắc nghiệm một đáp án"
-  }
+// 2. Tìm loại câu hỏi, nếu chưa có thì tự động tạo mới
+let type = await models.questionType.findFirst({
+  where: { name: "Trắc nghiệm một đáp án" }
 });
 
-if (!teacher || !type) {
-  throw new Error("Thiếu teacher hoặc question type");
+if (!type) {
+  console.log("🛠️ Chưa có loại câu hỏi trắc nghiệm, đang tạo mới...");
+  type = await models.questionType.create({
+    data: { name: "Trắc nghiệm một đáp án" }
+  });
+}
+
+// 3. Kiểm tra (Bây giờ chỉ cần check teacher vì type chắc chắn đã có)
+if (!teacher) {
+  throw new Error("Thiếu teacher trong Database. Vui lòng chạy file seed.ts tổng trước.");
 }
 
 const teacherId = teacher.id;

@@ -304,6 +304,43 @@ export class StudentLearningService {
   }
 
   /**
+   * Lấy chi tiết một tài liệu học tập (Taskman)
+   */
+  async getMaterialDetail(studentId: string, materialId: string) {
+    const material = await models.taskman.findUnique({
+      where: { id: materialId },
+      include: {
+        chapter: {
+          select: { subjectId: true },
+        },
+      },
+    });
+
+    if (!material) {
+      throw new Error("Không tìm thấy tài liệu học tập.");
+    }
+
+    // Kiểm tra quyền (sinh viên phải đang học môn này)
+    const isEnrolled = await models.classGroupUser.findFirst({
+      where: {
+        userId: studentId,
+        role: "STUDENT",
+        classGroup: {
+          subjectId: material.chapter.subjectId,
+        },
+      },
+    });
+
+    if (!isEnrolled) {
+      throw new Error(
+        "Bạn không có quyền xem tài liệu này vì chưa được ghi danh.",
+      );
+    }
+
+    return material;
+  }
+
+  /**
    * 9. Lấy danh sách bài test của sinh viên
    */
   async getStudentTests(studentId: string) {
